@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "antidistractor",
+    "antidistractor-ebpf",
+    "antidistractor-common",
+]
+resolver = "2"

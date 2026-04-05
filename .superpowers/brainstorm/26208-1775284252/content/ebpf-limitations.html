@@ -1,0 +1,39 @@
+<h2>eBPF 的局限性有哪些？</h2>
+<p class="subtitle">虽然 eBPF 很强大，但它不是万能的。在开发 Antidistractor 时，我们需要面对以下挑战：</p>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-body">
+      <h4>1. 协议复杂性 (H3/QUIC)</h4>
+      <p>HTTP/3 使用 UDP 且握手过程加密更早。eBPF 很难像处理 TCP 那样轻松提取 SNI。如果网站强制走 HTTP/3，屏蔽难度会增加。</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <h4>2. 加密客户端握手 (ECH)</h4>
+      <p>现代浏览器正逐步引入 <b>Encrypted Client Hello (ECH)</b>。这会把域名（SNI）也加密掉。一旦 ECH 普及，所有基于 SNI 的“透明屏蔽”都会失效。</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <h4>3. 内核版本依赖</h4>
+      <p>不同 Linux 发行版的内核版本不同。为了让 eBPF 程序在所有机器上运行（CO-RE），目标机器的内核需要开启 BTF 支持（通常内核 > 5.4）。</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <h4>4. 分段包处理</h4>
+      <p>如果一个 TLS 握手包被拆分成了多个 TCP 分段，eBPF 在内核态很难进行“流重组”。这可能导致漏掉某些屏蔽请求。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
+  <h3>我们的应对策略？</h3>
+  <ul>
+    <li><b>降级方案：</b> 当 eBPF 无法识别时，配合 Nftables 的 IP 屏蔽作为兜底。</li>
+    <li><b>开发语言：</b> 使用 <b>Go (Aya/Cilium)</b> 或 <b>Rust (Aya)</b>。Rust 对 eBPF 的支持非常现代，有助于处理这些复杂的边界情况。</li>
+  </ul>
+</div>
+
+<p>这些限制是否会动摇你选择 eBPF 的决心？还是说我们依然坚持这个硬核方向？</p>

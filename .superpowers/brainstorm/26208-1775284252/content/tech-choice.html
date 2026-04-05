@@ -1,0 +1,40 @@
+<h2>技术栈与 TUI 布局选择</h2>
+<p class="subtitle">既然由我来做主，我推荐使用 <b>Rust (Aya)</b>。它对 eBPF 的支持非常前卫，能保证内存安全，且编译出的二进制文件极小，非常适合这种底层系统工具。</p>
+
+<div class="section">
+  <h3>1. 核心技术栈</h3>
+  <ul>
+    <li><b>开发语言：</b> Rust (强类型、高性能、内存安全)</li>
+    <li><b>eBPF 框架：</b> Aya-rs (纯 Rust 实现的 eBPF 库，支持 CO-RE)</li>
+    <li><b>TUI 框架：</b> Ratatui (目前 Rust 最流行、功能最强大的终端 UI 库)</li>
+  </ul>
+</div>
+
+<h3>2. TUI 界面布局方案</h3>
+<p>我们需要一个直观的界面来管理屏蔽列表。你更喜欢哪种风格？</p>
+
+<div class="options">
+  <div class="option" data-choice="dashboard" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>仪表盘风格 (Dashboard)</h3>
+      <p><b>特点：</b> 左侧导航栏（状态、列表、设置），右侧详细信息。类似现代应用的布局。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="simple" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>极简列表风格 (Minimalist)</h3>
+      <p><b>特点：</b> 整个屏幕就是一个大列表，下方有简单的快捷键提示 (Add/Delete/Start)。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="classic" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>经典双栏管理 (Two-Pane)</h3>
+      <p><b>特点：</b> 类似 Total Commander，左侧是预设列表，右侧是已启用的屏蔽，方便快速切换。</p>
+    </div>
+  </div>
+</div>
+
+<p>你更倾向于哪种操作体验？</p>
