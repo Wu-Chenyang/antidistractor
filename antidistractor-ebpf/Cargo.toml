@@ -4,11 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-aya-ebpf = "0.1.0"
+aya-ebpf = { git = "https://github.com/aya-rs/aya", branch = "main" }
 antidistractor-common = { path = "../antidistractor-common" }
 
-[profile.release]
-lto = true
-panic = "abort"
-codegen-units = 1
-debug = true

@@ -1,0 +1,16 @@
+[Unit]
+Description=Antidistractor - eBPF based website blocker
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/home/wucy/Workspace/antidistractor/target/release/antidistractor --daemon
+WorkingDirectory=/home/wucy/Workspace/antidistractor
+Restart=on-failure
+RestartSec=5
+User=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

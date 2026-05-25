@@ -1,0 +1,12 @@
+[Unit]
+Description=Enforce screen lock during blocked hours (01:00-07:00)
+After=graphical.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/enforce-lock-daemon.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical.target
