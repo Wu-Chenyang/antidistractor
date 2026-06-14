@@ -9,6 +9,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use serde::{Deserialize, Serialize};
 use crate::ebpf::EbpfManager;
 use crate::app_blocker::BlockedSet;
+use crate::process_freezer::FreezerState;
 use std::os::unix::fs::PermissionsExt;
 
 const SOCKET_PATH: &str = "/var/run/antidistractor.sock";
@@ -44,6 +45,15 @@ pub enum ControlCmd {
         #[serde(default)]
         names: Vec<String>,
     },
+    /// 冻结进程（SIGSTOP），按进程名匹配所有实例及其子进程树
+    FreezeApp {
+        /// 进程名列表（basename），如 ["code", "WeChat"]
+        names: Vec<String>,
+    },
+    /// 解冻进程（SIGCONT）
+    ThawApp {
+        names: Vec<String>,
+    },
     /// 查询当前状态
     Status,
 }
@@ -63,6 +73,7 @@ pub struct StatusPayload {
     pub focus_mode: bool,
     pub dynamic_blocked: Vec<String>,  // Guardian 动态屏蔽的域名（不含默认列表）
     pub blocked_apps: BlockedAppsPayload,
+    pub frozen_apps: Vec<String>,       // 当前被 SIGSTOP 冻结的进程名
     pub uptime_seconds: u64,
 }
 
@@ -76,6 +87,7 @@ pub struct BlockedAppsPayload {
 pub async fn run_control_server(
     ebpf: Arc<Mutex<EbpfManager>>,
     blocked_apps: Arc<Mutex<BlockedSet>>,
+    freezer: Arc<Mutex<FreezerState>>,
     start_time: std::time::Instant,
 ) -> anyhow::Result<()> {
     // 清理残留 socket 文件
@@ -97,13 +109,14 @@ pub async fn run_control_server(
         let dynamic_blocked = Arc::clone(&dynamic_blocked);
         let focus_mode_active = Arc::clone(&focus_mode_active);
         let blocked_apps = Arc::clone(&blocked_apps);
+        let freezer = Arc::clone(&freezer);
 
         tokio::spawn(async move {
             let (reader, mut writer) = stream.into_split();
             let mut lines = BufReader::new(reader).lines();
 
             let resp = if let Ok(Some(line)) = lines.next_line().await {
-                handle_cmd(&line, &ebpf, &dynamic_blocked, &focus_mode_active, &blocked_apps, start_time)
+                handle_cmd(&line, &ebpf, &dynamic_blocked, &focus_mode_active, &blocked_apps, &freezer, start_time)
             } else {
                 ControlResp { ok: false, error: Some("empty input".into()), status: None }
             };
@@ -120,6 +133,7 @@ fn handle_cmd(
     dynamic_blocked: &Arc<Mutex<Vec<String>>>,
     focus_mode_active: &Arc<Mutex<bool>>,
     blocked_apps: &Arc<Mutex<BlockedSet>>,
+    freezer: &Arc<Mutex<FreezerState>>,
     start_time: std::time::Instant,
 ) -> ControlResp {
     let cmd: ControlCmd = match serde_json::from_str(line) {
@@ -213,6 +227,42 @@ fn handle_cmd(
             ControlResp { ok: true, error: None, status: None }
         }
 
+        ControlCmd::FreezeApp { names } => {
+            let mut errs = Vec::new();
+            for name in &names {
+                let (count, already, _) = crate::process_freezer::freeze(freezer, name);
+                if already {
+                    log::info!("[control-server] freeze_app '{name}': already frozen");
+                } else if count == 0 {
+                    errs.push(format!("{name}: no matching process found"));
+                } else {
+                    log::info!("[control-server] freeze_app '{name}': {count} process(es) frozen");
+                }
+            }
+            if errs.is_empty() {
+                ControlResp { ok: true, error: None, status: None }
+            } else {
+                ControlResp { ok: false, error: Some(errs.join("; ")), status: None }
+            }
+        }
+
+        ControlCmd::ThawApp { names } => {
+            let mut errs = Vec::new();
+            for name in &names {
+                let (count, found) = crate::process_freezer::thaw(freezer, name);
+                if !found {
+                    errs.push(format!("{name}: not in frozen list"));
+                } else {
+                    log::info!("[control-server] thaw_app '{name}': {count} process(es) resumed");
+                }
+            }
+            if errs.is_empty() {
+                ControlResp { ok: true, error: None, status: None }
+            } else {
+                ControlResp { ok: false, error: Some(errs.join("; ")), status: None }
+            }
+        }
+
         ControlCmd::Status => {
             let db = dynamic_blocked.lock().unwrap().clone();
             let fm = *focus_mode_active.lock().unwrap();
@@ -221,6 +271,7 @@ fn handle_cmd(
             let mut names: Vec<String> = apps.names.iter().cloned().collect();
             paths.sort();
             names.sort();
+            let frozen_apps = freezer.lock().unwrap().frozen_names();
             ControlResp {
                 ok: true,
                 error: None,
@@ -228,6 +279,7 @@ fn handle_cmd(
                     focus_mode: fm,
                     dynamic_blocked: db,
                     blocked_apps: BlockedAppsPayload { paths, names },
+                    frozen_apps,
                     uptime_seconds: start_time.elapsed().as_secs(),
                 }),
             }
@@ -348,6 +400,7 @@ mod tests {
                     paths: vec!["/usr/bin/steam".into()],
                     names: vec!["WeChat".into()],
                 },
+                frozen_apps: vec!["code".into()],
                 uptime_seconds: 42,
             }),
         };
@@ -357,7 +410,24 @@ mod tests {
         assert!(s.contains("tiktok.com"));
         assert!(s.contains("/usr/bin/steam"));
         assert!(s.contains("WeChat"));
+        assert!(s.contains(r#""frozen_apps":["code"]"#));
         assert!(!s.contains("error"));
+    }
+
+    #[test]
+    fn test_freeze_app_parse() {
+        let cmd = parse(r#"{"cmd":"freeze_app","names":["code","WeChat"]}"#).unwrap();
+        if let ControlCmd::FreezeApp { names } = cmd {
+            assert_eq!(names, vec!["code", "WeChat"]);
+        } else { panic!("wrong variant"); }
+    }
+
+    #[test]
+    fn test_thaw_app_parse() {
+        let cmd = parse(r#"{"cmd":"thaw_app","names":["code"]}"#).unwrap();
+        if let ControlCmd::ThawApp { names } = cmd {
+            assert_eq!(names, vec!["code"]);
+        } else { panic!("wrong variant"); }
     }
 
     #[test]

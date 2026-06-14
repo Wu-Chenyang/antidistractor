@@ -2,6 +2,7 @@ mod ebpf;
 mod ui;
 mod control_server;
 mod app_blocker;
+mod process_freezer;
 
 use ebpf::EbpfManager;
 use log::{info, warn, error};
@@ -156,11 +157,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             app_blocker.run();
         });
 
+        // Initialize process freezer state
+        let freezer = Arc::new(Mutex::new(process_freezer::FreezerState::default()));
+
         // Spawn control server (Unix socket) in background
         let ebpf_ctl = Arc::clone(&ebpf);
         let blocked_apps_ctl = Arc::clone(&blocked_apps);
+        let freezer_ctl = Arc::clone(&freezer);
         tokio::spawn(async move {
-            if let Err(e) = control_server::run_control_server(ebpf_ctl, blocked_apps_ctl, start_time).await {
+            if let Err(e) = control_server::run_control_server(ebpf_ctl, blocked_apps_ctl, freezer_ctl, start_time).await {
                 error!("[control-server] Fatal error: {}", e);
             }
         });
