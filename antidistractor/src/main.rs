@@ -1,6 +1,7 @@
 mod ebpf;
 mod ui;
 mod control_server;
+mod app_blocker;
 
 use ebpf::EbpfManager;
 use log::{info, warn, error};
@@ -137,10 +138,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         info!("Daemon running. Blocking {} domains on {} interface(s). Send SIGTERM to stop.",
               DEFAULT_BLOCKLIST.len(), all_ifaces.len());
 
+        // Initialize app blocker (fanotify)
+        let app_blocker = match app_blocker::AppBlocker::new() {
+            Ok(b) => b,
+            Err(e) => {
+                error!("[app-blocker] Failed to initialize fanotify: {e}");
+                return Err(e.into());
+            }
+        };
+        let blocked_apps = Arc::clone(&app_blocker.blocked);
+
+        // Spawn fanotify listener in a dedicated OS thread (NOT spawn_blocking).
+        // Using a plain std thread ensures the fanotify loop is independent of
+        // the tokio runtime, preventing any cross-exec deadlock where tokio itself
+        // triggers an exec event that the same blocking thread needs to respond to.
+        std::thread::spawn(move || {
+            app_blocker.run();
+        });
+
         // Spawn control server (Unix socket) in background
         let ebpf_ctl = Arc::clone(&ebpf);
+        let blocked_apps_ctl = Arc::clone(&blocked_apps);
         tokio::spawn(async move {
-            if let Err(e) = control_server::run_control_server(ebpf_ctl, start_time).await {
+            if let Err(e) = control_server::run_control_server(ebpf_ctl, blocked_apps_ctl, start_time).await {
                 error!("[control-server] Fatal error: {}", e);
             }
         });

@@ -8,6 +8,7 @@ use tokio::net::UnixListener;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use serde::{Deserialize, Serialize};
 use crate::ebpf::EbpfManager;
+use crate::app_blocker::BlockedSet;
 use std::os::unix::fs::PermissionsExt;
 
 const SOCKET_PATH: &str = "/var/run/antidistractor.sock";
@@ -27,6 +28,22 @@ pub enum ControlCmd {
         #[serde(default)]
         domains: Vec<String>,
     },
+    /// 阻止特定应用启动（fanotify FAN_OPEN_EXEC_PERM）
+    BlockApp {
+        /// 精确可执行文件路径，如 ["/usr/bin/steam"]
+        #[serde(default)]
+        paths: Vec<String>,
+        /// 进程名（basename），如 ["WeChat", "steam"]
+        #[serde(default)]
+        names: Vec<String>,
+    },
+    /// 取消阻止应用启动
+    UnblockApp {
+        #[serde(default)]
+        paths: Vec<String>,
+        #[serde(default)]
+        names: Vec<String>,
+    },
     /// 查询当前状态
     Status,
 }
@@ -45,13 +62,20 @@ pub struct ControlResp {
 pub struct StatusPayload {
     pub focus_mode: bool,
     pub dynamic_blocked: Vec<String>,  // Guardian 动态屏蔽的域名（不含默认列表）
+    pub blocked_apps: BlockedAppsPayload,
     pub uptime_seconds: u64,
 }
 
+#[derive(Serialize)]
+pub struct BlockedAppsPayload {
+    pub paths: Vec<String>,
+    pub names: Vec<String>,
+}
+
 /// 启动 control server（在 daemon 模式下 tokio::spawn 调用）。
-/// ebpf 必须是 Arc<Mutex<EbpfManager>>，以便跨线程安全访问。
 pub async fn run_control_server(
     ebpf: Arc<Mutex<EbpfManager>>,
+    blocked_apps: Arc<Mutex<BlockedSet>>,
     start_time: std::time::Instant,
 ) -> anyhow::Result<()> {
     // 清理残留 socket 文件
@@ -72,13 +96,14 @@ pub async fn run_control_server(
         let ebpf = Arc::clone(&ebpf);
         let dynamic_blocked = Arc::clone(&dynamic_blocked);
         let focus_mode_active = Arc::clone(&focus_mode_active);
+        let blocked_apps = Arc::clone(&blocked_apps);
 
         tokio::spawn(async move {
             let (reader, mut writer) = stream.into_split();
             let mut lines = BufReader::new(reader).lines();
 
             let resp = if let Ok(Some(line)) = lines.next_line().await {
-                handle_cmd(&line, &ebpf, &dynamic_blocked, &focus_mode_active, start_time)
+                handle_cmd(&line, &ebpf, &dynamic_blocked, &focus_mode_active, &blocked_apps, start_time)
             } else {
                 ControlResp { ok: false, error: Some("empty input".into()), status: None }
             };
@@ -94,6 +119,7 @@ fn handle_cmd(
     ebpf: &Arc<Mutex<EbpfManager>>,
     dynamic_blocked: &Arc<Mutex<Vec<String>>>,
     focus_mode_active: &Arc<Mutex<bool>>,
+    blocked_apps: &Arc<Mutex<BlockedSet>>,
     start_time: std::time::Instant,
 ) -> ControlResp {
     let cmd: ControlCmd = match serde_json::from_str(line) {
@@ -163,15 +189,45 @@ fn handle_cmd(
             }
         }
 
+        ControlCmd::BlockApp { paths, names } => {
+            let mut set = blocked_apps.lock().unwrap();
+            for p in paths {
+                log::info!("[control-server] block_app path: {p}");
+                set.paths.insert(p);
+            }
+            for n in names {
+                log::info!("[control-server] block_app name: {n}");
+                set.names.insert(n);
+            }
+            ControlResp { ok: true, error: None, status: None }
+        }
+
+        ControlCmd::UnblockApp { paths, names } => {
+            let mut set = blocked_apps.lock().unwrap();
+            for p in &paths {
+                set.paths.remove(p);
+            }
+            for n in &names {
+                set.names.remove(n);
+            }
+            ControlResp { ok: true, error: None, status: None }
+        }
+
         ControlCmd::Status => {
             let db = dynamic_blocked.lock().unwrap().clone();
             let fm = *focus_mode_active.lock().unwrap();
+            let apps = blocked_apps.lock().unwrap();
+            let mut paths: Vec<String> = apps.paths.iter().cloned().collect();
+            let mut names: Vec<String> = apps.names.iter().cloned().collect();
+            paths.sort();
+            names.sort();
             ControlResp {
                 ok: true,
                 error: None,
                 status: Some(StatusPayload {
                     focus_mode: fm,
                     dynamic_blocked: db,
+                    blocked_apps: BlockedAppsPayload { paths, names },
                     uptime_seconds: start_time.elapsed().as_secs(),
                 }),
             }
@@ -227,6 +283,34 @@ mod tests {
     }
 
     #[test]
+    fn test_block_app_paths() {
+        let cmd = parse(r#"{"cmd":"block_app","paths":["/usr/bin/steam"],"names":[]}"#).unwrap();
+        if let ControlCmd::BlockApp { paths, names } = cmd {
+            assert_eq!(paths, vec!["/usr/bin/steam"]);
+            assert!(names.is_empty());
+        } else { panic!("wrong variant"); }
+    }
+
+    #[test]
+    fn test_block_app_names() {
+        let cmd = parse(r#"{"cmd":"block_app","names":["WeChat","steam"]}"#).unwrap();
+        if let ControlCmd::BlockApp { paths, names } = cmd {
+            assert!(paths.is_empty());
+            assert_eq!(names.len(), 2);
+            assert!(names.contains(&"WeChat".to_string()));
+        } else { panic!("wrong variant"); }
+    }
+
+    #[test]
+    fn test_unblock_app() {
+        let cmd = parse(r#"{"cmd":"unblock_app","paths":["/usr/bin/steam"]}"#).unwrap();
+        if let ControlCmd::UnblockApp { paths, names } = cmd {
+            assert_eq!(paths, vec!["/usr/bin/steam"]);
+            assert!(names.is_empty());
+        } else { panic!("wrong variant"); }
+    }
+
+    #[test]
     fn test_invalid_cmd() {
         assert!(parse(r#"{"cmd":"invalid"}"#).is_err());
     }
@@ -260,6 +344,10 @@ mod tests {
             status: Some(StatusPayload {
                 focus_mode: true,
                 dynamic_blocked: vec!["tiktok.com".into()],
+                blocked_apps: BlockedAppsPayload {
+                    paths: vec!["/usr/bin/steam".into()],
+                    names: vec!["WeChat".into()],
+                },
                 uptime_seconds: 42,
             }),
         };
@@ -267,6 +355,24 @@ mod tests {
         assert!(s.contains(r#""focus_mode":true"#));
         assert!(s.contains(r#""uptime_seconds":42"#));
         assert!(s.contains("tiktok.com"));
+        assert!(s.contains("/usr/bin/steam"));
+        assert!(s.contains("WeChat"));
         assert!(!s.contains("error"));
+    }
+
+    #[test]
+    fn test_blocked_set_path_match() {
+        let mut set = BlockedSet::default();
+        set.paths.insert("/usr/bin/steam".to_string());
+        assert!(set.is_blocked("/usr/bin/steam"));
+        assert!(!set.is_blocked("/usr/bin/steamcmd"));
+    }
+
+    #[test]
+    fn test_blocked_set_name_match() {
+        let mut set = BlockedSet::default();
+        set.names.insert("WeChat".to_string());
+        assert!(set.is_blocked("/opt/wechat/WeChat"));
+        assert!(!set.is_blocked("/opt/wechat/wechat"));  // 大小写敏感
     }
 }
