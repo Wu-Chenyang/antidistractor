@@ -1,10 +1,12 @@
 mod ebpf;
 mod ui;
+mod control_server;
 
 use ebpf::EbpfManager;
 use log::{info, warn, error};
 use std::collections::HashSet;
 use std::process::Command;
+use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use std::env;
 use std::fs::File;
@@ -108,7 +110,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if daemon_mode {
         // Daemon mode: load eBPF, add default blocklist, watch for new TUN interfaces
-        let mut ebpf = EbpfManager::load(&all_ifaces)
+        let ebpf_raw = EbpfManager::load(&all_ifaces)
             .map_err(|e| {
                 error!("CRITICAL ERROR: BPF Load Failed: {}", e);
                 e
@@ -116,17 +118,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         info!("eBPF Program loaded successfully.");
 
+        // Wrap in Arc<Mutex<>> for shared access across control server and main loop
+        let ebpf = Arc::new(Mutex::new(ebpf_raw));
+        let start_time = std::time::Instant::now();
+
         // Add default blocklist
-        for domain in DEFAULT_BLOCKLIST {
-            if let Err(e) = ebpf.add_domain(domain) {
-                error!("Failed to add domain '{}': {}", domain, e);
-            } else {
-                info!("Blocked: {}", domain);
+        {
+            let mut mgr = ebpf.lock().unwrap();
+            for domain in DEFAULT_BLOCKLIST {
+                if let Err(e) = mgr.add_domain(domain) {
+                    error!("Failed to add domain '{}': {}", domain, e);
+                } else {
+                    info!("Blocked: {}", domain);
+                }
             }
         }
 
         info!("Daemon running. Blocking {} domains on {} interface(s). Send SIGTERM to stop.",
               DEFAULT_BLOCKLIST.len(), all_ifaces.len());
+
+        // Spawn control server (Unix socket) in background
+        let ebpf_ctl = Arc::clone(&ebpf);
+        tokio::spawn(async move {
+            if let Err(e) = control_server::run_control_server(ebpf_ctl, start_time).await {
+                error!("[control-server] Fatal error: {}", e);
+            }
+        });
 
         // Track which interfaces we've already attached to
         let mut attached: HashSet<String> = all_ifaces.iter().map(|s| s.to_string()).collect();
@@ -147,7 +164,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     for tun in &current_tuns {
                         if !attached.contains(tun) {
                             info!("New TUN interface detected: {}", tun);
-                            match ebpf.attach_interface(tun) {
+                            let mut mgr = ebpf.lock().unwrap();
+                            match mgr.attach_interface(tun) {
                                 Ok(()) => {
                                     attached.insert(tun.clone());
                                     info!("Successfully attached eBPF to new TUN: {}", tun);

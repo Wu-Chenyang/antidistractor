@@ -1,0 +1,23 @@
+#!/bin/bash
+# antidistractor-ctl — Guardian control helper
+# 以 root 身份运行（sudoers NOPASSWD 配置），连接 Unix socket 发送单条 JSON 命令。
+#
+# 用法：antidistractor-ctl '{"cmd":"focus_mode","enabled":true}'
+#       antidistractor-ctl '{"cmd":"status"}'
+
+set -euo pipefail
+
+SOCKET=/var/run/antidistractor.sock
+
+if [ ! -S "$SOCKET" ]; then
+  echo '{"ok":false,"error":"socket not found — is antidistractor running?"}' >&1
+  exit 1
+fi
+
+if [ $# -ne 1 ]; then
+  echo '{"ok":false,"error":"usage: antidistractor-ctl <json>"}' >&1
+  exit 1
+fi
+
+# socat 发送命令并读回响应（超时 3 秒）
+echo "$1" | socat -t3 - UNIX-CONNECT:"$SOCKET"
