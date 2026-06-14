@@ -178,3 +178,95 @@ fn handle_cmd(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(s: &str) -> Result<ControlCmd, serde_json::Error> {
+        serde_json::from_str(s)
+    }
+
+    #[test]
+    fn test_status() {
+        assert!(matches!(parse(r#"{"cmd":"status"}"#).unwrap(), ControlCmd::Status));
+    }
+
+    #[test]
+    fn test_block() {
+        let cmd = parse(r#"{"cmd":"block","domains":["example.com","test.org"]}"#).unwrap();
+        if let ControlCmd::Block { domains } = cmd {
+            assert_eq!(domains, vec!["example.com", "test.org"]);
+        } else { panic!("wrong variant"); }
+    }
+
+    #[test]
+    fn test_unblock() {
+        let cmd = parse(r#"{"cmd":"unblock","domains":["example.com"]}"#).unwrap();
+        if let ControlCmd::Unblock { domains } = cmd {
+            assert_eq!(domains, vec!["example.com"]);
+        } else { panic!("wrong variant"); }
+    }
+
+    #[test]
+    fn test_focus_mode_on() {
+        let cmd = parse(r#"{"cmd":"focus_mode","enabled":true,"domains":["tiktok.com"]}"#).unwrap();
+        if let ControlCmd::FocusMode { enabled, domains } = cmd {
+            assert!(enabled);
+            assert_eq!(domains, vec!["tiktok.com"]);
+        } else { panic!("wrong variant"); }
+    }
+
+    #[test]
+    fn test_focus_mode_off_no_domains() {
+        let cmd = parse(r#"{"cmd":"focus_mode","enabled":false}"#).unwrap();
+        if let ControlCmd::FocusMode { enabled, domains } = cmd {
+            assert!(!enabled);
+            assert!(domains.is_empty());
+        } else { panic!("wrong variant"); }
+    }
+
+    #[test]
+    fn test_invalid_cmd() {
+        assert!(parse(r#"{"cmd":"invalid"}"#).is_err());
+    }
+
+    #[test]
+    fn test_not_json() {
+        assert!(parse("not json").is_err());
+    }
+
+    #[test]
+    fn test_resp_ok_serialization() {
+        let r = ControlResp { ok: true, error: None, status: None };
+        let s = serde_json::to_string(&r).unwrap();
+        assert_eq!(s, r#"{"ok":true}"#);
+    }
+
+    #[test]
+    fn test_resp_error_serialization() {
+        let r = ControlResp { ok: false, error: Some("oops".into()), status: None };
+        let s = serde_json::to_string(&r).unwrap();
+        assert!(s.contains(r#""ok":false"#));
+        assert!(s.contains(r#""error":"oops""#));
+        assert!(!s.contains("status"));
+    }
+
+    #[test]
+    fn test_resp_status_serialization() {
+        let r = ControlResp {
+            ok: true,
+            error: None,
+            status: Some(StatusPayload {
+                focus_mode: true,
+                dynamic_blocked: vec!["tiktok.com".into()],
+                uptime_seconds: 42,
+            }),
+        };
+        let s = serde_json::to_string(&r).unwrap();
+        assert!(s.contains(r#""focus_mode":true"#));
+        assert!(s.contains(r#""uptime_seconds":42"#));
+        assert!(s.contains("tiktok.com"));
+        assert!(!s.contains("error"));
+    }
+}
