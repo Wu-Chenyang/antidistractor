@@ -1,6 +1,7 @@
 [Unit]
 Description=Antidistractor - eBPF based website blocker
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
@@ -11,6 +12,9 @@ RestartSec=5
 User=root
 StandardOutput=journal
 StandardError=journal
+# Graceful shutdown via SIGTERM → tokio ctrl_c handler
+KillSignal=SIGTERM
+TimeoutStopSec=10
 
 [Install]
 WantedBy=multi-user.target

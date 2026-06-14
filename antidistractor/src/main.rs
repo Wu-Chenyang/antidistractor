@@ -2,7 +2,8 @@ mod ebpf;
 mod ui;
 
 use ebpf::EbpfManager;
-use log::{info, error};
+use log::{info, warn, error};
+use std::collections::HashSet;
 use std::process::Command;
 use tokio::sync::mpsc;
 use std::env;
@@ -15,11 +16,58 @@ fn get_default_interface() -> Option<String> {
     stdout.split_whitespace().nth(4).map(|s| s.to_string())
 }
 
+/// Detect TUN/tun-like interfaces (e.g. Mihomo, clash, tun0).
+/// These are POINTOPOINT interfaces that proxy traffic may use to bypass the
+/// default network interface.
+fn detect_tun_interfaces() -> Vec<String> {
+    let output = match Command::new("ip").args(["-o", "link", "show", "type", "tun"]).output() {
+        Ok(o) => o,
+        Err(_) => return vec![],
+    };
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut ifaces = Vec::new();
+    for line in stdout.lines() {
+        // Format: "36: Mihomo: <POINTOPOINT,...> ..."
+        if let Some(name) = line.split(':').nth(1) {
+            let name = name.trim().to_string();
+            if !name.is_empty() {
+                ifaces.push(name);
+            }
+        }
+    }
+    ifaces
+}
+
 /// Default blocklist domains
 const DEFAULT_BLOCKLIST: &[&str] = &[
-    "www.bilibili.com",
     "bilibili.com",
+    "www.bilibili.com",
+    "m.bilibili.com",
+    "api.bilibili.com",
+    "api.vc.bilibili.com",
+    "app.bilibili.com",
+    "live.bilibili.com",
+    "t.bilibili.com",
+    "space.bilibili.com",
+    "search.bilibili.com",
+    "member.bilibili.com",
+    "passport.bilibili.com",
+    "account.bilibili.com",
+    "manga.bilibili.com",
+    "hdslb.com",
+    "www.hdslb.com",
+    "i0.hdslb.com",
+    "i1.hdslb.com",
+    "i2.hdslb.com",
+    "s1.hdslb.com",
+    "bilivideo.com",
+    "bilivideo.cn",
+    "biliapi.net",
+    "biliapi.com",
 ];
+
+/// Interval for checking new TUN interfaces (seconds)
+const TUN_POLL_INTERVAL_SECS: u64 = 10;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -37,18 +85,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("=== Antidistractor Session Started (daemon={}) ===", daemon_mode);
 
-    // Get interface: first non-flag argument, or auto-detect
-    let iface = args.iter()
+    // Get default interface: first non-flag argument, or auto-detect
+    let default_iface = args.iter()
         .skip(1)
         .find(|a| !a.starts_with('-'))
         .cloned()
         .or_else(get_default_interface)
         .unwrap_or_else(|| "eth0".to_string());
-    info!("Target Interface: {}", iface);
+
+    // Collect all interfaces to attach: default + loopback + any detected TUN interfaces.
+    // Loopback is needed to intercept TLS ClientHello sent to local proxy (e.g. Mihomo HTTP
+    // proxy on 127.0.0.1:7890).
+    let tun_ifaces = detect_tun_interfaces();
+    let mut all_ifaces = vec!["lo", default_iface.as_str()];
+    let tun_refs: Vec<&str> = tun_ifaces.iter().map(|s| s.as_str()).collect();
+    all_ifaces.extend_from_slice(&tun_refs);
+    // Deduplicate
+    all_ifaces.sort();
+    all_ifaces.dedup();
+
+    info!("Target Interfaces: {:?}", all_ifaces);
 
     if daemon_mode {
-        // Daemon mode: load eBPF, add default blocklist, sleep forever
-        let mut ebpf = EbpfManager::load(&iface)
+        // Daemon mode: load eBPF, add default blocklist, watch for new TUN interfaces
+        let mut ebpf = EbpfManager::load(&all_ifaces)
             .map_err(|e| {
                 error!("CRITICAL ERROR: BPF Load Failed: {}", e);
                 e
@@ -65,17 +125,49 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        info!("Daemon running. Blocking {} domains. Send SIGTERM to stop.", DEFAULT_BLOCKLIST.len());
+        info!("Daemon running. Blocking {} domains on {} interface(s). Send SIGTERM to stop.",
+              DEFAULT_BLOCKLIST.len(), all_ifaces.len());
 
-        // Wait forever (until SIGTERM from systemd)
-        tokio::signal::ctrl_c().await?;
-        info!("=== Antidistractor Daemon Stopped ===");
+        // Track which interfaces we've already attached to
+        let mut attached: HashSet<String> = all_ifaces.iter().map(|s| s.to_string()).collect();
+
+        // Periodically check for new TUN interfaces (e.g. Mihomo started after us)
+        let mut interval = tokio::time::interval(
+            tokio::time::Duration::from_secs(TUN_POLL_INTERVAL_SECS)
+        );
+
+        loop {
+            tokio::select! {
+                _ = tokio::signal::ctrl_c() => {
+                    info!("=== Antidistractor Daemon Stopped ===");
+                    break;
+                }
+                _ = interval.tick() => {
+                    let current_tuns = detect_tun_interfaces();
+                    for tun in &current_tuns {
+                        if !attached.contains(tun) {
+                            info!("New TUN interface detected: {}", tun);
+                            match ebpf.attach_interface(tun) {
+                                Ok(()) => {
+                                    attached.insert(tun.clone());
+                                    info!("Successfully attached eBPF to new TUN: {}", tun);
+                                }
+                                Err(e) => {
+                                    warn!("Failed to attach eBPF to TUN '{}': {}", tun, e);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Ok(())
     } else {
         // Interactive TUI mode
         let (log_tx, log_rx) = mpsc::unbounded_channel();
 
-        let ebpf = match EbpfManager::load(&iface) {
+        let ebpf = match EbpfManager::load(&all_ifaces) {
             Ok(manager) => {
                 info!("eBPF Program loaded successfully.");
                 Some(manager)

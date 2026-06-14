@@ -66,33 +66,56 @@ fn skb_load_u16(ctx: &TcContext, off: usize) -> Result<u16, ()> {
 }
 
 fn try_antidistractor(ctx: &TcContext) -> Result<i32, ()> {
-    // Read EtherType (at offset 12 in ethernet frame)
-    let ether_type = skb_load_u16(ctx, 12)?;
+    // Detect whether the packet has an Ethernet header or starts directly at IP.
+    // TUN/tap interfaces (link/none) have no Ethernet header — data starts at IP.
+    // Regular interfaces (link/ether) have a 14-byte Ethernet header.
+    //
+    // We inspect the first byte of the packet:
+    //   - IPv4 starts with 0x4? (version=4)
+    //   - IPv6 starts with 0x6? (version=6)
+    //   - Ethernet starts with a MAC byte (very unlikely to be 0x40-0x4F or 0x60-0x6F)
+    let first_byte = skb_load_u8(ctx, 0)?;
+    let ip_version = first_byte >> 4;
 
-    let mut offset: usize = 14; // past ethernet header
+    let mut offset: usize;
     let proto: u8;
 
-    if ether_type == 0x0800 {
-        // IPv4: read protocol and IHL
-        let ver_ihl = skb_load_u8(ctx, offset)?;
+    if ip_version == 4 {
+        // No Ethernet header — packet starts at IPv4
+        offset = 0;
+        let ver_ihl = first_byte;
         proto = skb_load_u8(ctx, offset + 9)?;
         let ihl = (ver_ihl & 0x0F) as usize * 4;
         if ihl < 20 || ihl > 60 { return Ok(TC_ACT_OK); }
         offset += ihl;
-    } else if ether_type == 0x86DD {
-        // IPv6: next header at offset+6
+    } else if ip_version == 6 {
+        // No Ethernet header — packet starts at IPv6
+        offset = 0;
         proto = skb_load_u8(ctx, offset + 6)?;
         offset += 40;
     } else {
-        return Ok(TC_ACT_OK);
+        // Likely has Ethernet header — read EtherType at offset 12
+        let ether_type = skb_load_u16(ctx, 12)?;
+        offset = 14; // past ethernet header
+
+        if ether_type == 0x0800 {
+            // IPv4
+            let ver_ihl = skb_load_u8(ctx, offset)?;
+            proto = skb_load_u8(ctx, offset + 9)?;
+            let ihl = (ver_ihl & 0x0F) as usize * 4;
+            if ihl < 20 || ihl > 60 { return Ok(TC_ACT_OK); }
+            offset += ihl;
+        } else if ether_type == 0x86DD {
+            // IPv6
+            proto = skb_load_u8(ctx, offset + 6)?;
+            offset += 40;
+        } else {
+            return Ok(TC_ACT_OK);
+        }
     }
 
     // Only TCP
     if proto != 6 { return Ok(TC_ACT_OK); }
-
-    // Read TCP destination port (offset+2 in TCP header)
-    let dest_port = skb_load_u16(ctx, offset + 2)?;
-    if dest_port != 443 { return Ok(TC_ACT_OK); }
 
     // TCP data offset (offset+12, upper 4 bits)
     let doff_byte = skb_load_u8(ctx, offset + 12)?;

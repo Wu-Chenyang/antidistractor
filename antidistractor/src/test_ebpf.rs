@@ -8,7 +8,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // 1. Load eBPF
     println!("[1/4] Loading eBPF program on wlp1s0...");
-    let mut manager = match ebpf::EbpfManager::load("wlp1s0") {
+    let mut manager = match ebpf::EbpfManager::load(&["wlp1s0"]) {
         Ok(m) => m,
         Err(e) => {
             eprintln!("Error: Could not load eBPF (Are you root?): {}", e);

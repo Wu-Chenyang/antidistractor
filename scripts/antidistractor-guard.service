@@ -1,0 +1,16 @@
+[Unit]
+Description=Antidistractor Guard - monitors and repairs blocking config
+After=network-online.target antidistractor.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/home/wucy/Workspace/antidistractor/scripts/antidistractor-guard.sh
+Restart=always
+RestartSec=5
+User=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

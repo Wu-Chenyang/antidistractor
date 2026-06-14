@@ -1,0 +1,145 @@
+# https://clashparty.org/docs/guide/override/yaml
+# Antidistractor: bilibili + adult + anime + video blocking
+
+rule-providers:
+  porn-domains:
+    type: file
+    behavior: domain
+    path: ./rules/porn-domains.yaml
+
++rules:
+  # === bilibili ===
+  - DOMAIN-SUFFIX,bilibili.com,REJECT
+  - DOMAIN-SUFFIX,bilivideo.com,REJECT
+  - DOMAIN-SUFFIX,bilivideo.cn,REJECT
+  - DOMAIN-SUFFIX,biliapi.net,REJECT
+  - DOMAIN-SUFFIX,biliapi.com,REJECT
+  - DOMAIN-SUFFIX,hdslb.com,REJECT
+  # === 吃瓜/黑料/暗网类 - 关键词匹配 ===
+  - DOMAIN-KEYWORD,chigua,REJECT
+  - DOMAIN-KEYWORD,51cg,REJECT
+  - DOMAIN-KEYWORD,52cg,REJECT
+  - DOMAIN-KEYWORD,cg51,REJECT
+  - DOMAIN-KEYWORD,melon51,REJECT
+  - DOMAIN-KEYWORD,51hlws,REJECT
+  - DOMAIN-KEYWORD,51aw,REJECT
+  - DOMAIN-KEYWORD,awcg,REJECT
+  - DOMAIN-KEYWORD,heiliao,REJECT
+  # === 吃瓜类 - 已知固定域名 ===
+  - DOMAIN-SUFFIX,cg51.com,REJECT
+  - DOMAIN-SUFFIX,51cg1.com,REJECT
+  - DOMAIN-SUFFIX,chigua.com,REJECT
+  - DOMAIN-SUFFIX,chiguawang.com,REJECT
+  - DOMAIN-SUFFIX,51hlws.com,REJECT
+  - DOMAIN-SUFFIX,52cg1.win,REJECT
+  - DOMAIN-SUFFIX,51awb33.com,REJECT
+  - DOMAIN-SUFFIX,51aw.com,REJECT
+  - DOMAIN-SUFFIX,awcg48.com,REJECT
+  # === 成人内容关键词匹配 ===
+  - DOMAIN-KEYWORD,91porn,REJECT
+  - DOMAIN-KEYWORD,missav,REJECT
+  - DOMAIN-KEYWORD,javbus,REJECT
+  - DOMAIN-KEYWORD,javdb,REJECT
+  - DOMAIN-KEYWORD,jable,REJECT
+  - DOMAIN-KEYWORD,18comic,REJECT
+  - DOMAIN-KEYWORD,nhentai,REJECT
+  - DOMAIN-KEYWORD,pornhub,REJECT
+  - DOMAIN-KEYWORD,xvideos,REJECT
+  - DOMAIN-KEYWORD,xhamster,REJECT
+  - DOMAIN-KEYWORD,xnxx,REJECT
+  - DOMAIN-KEYWORD,hentai,REJECT
+  - DOMAIN-KEYWORD,haijiao,REJECT
+  - DOMAIN-KEYWORD,madou,REJECT
+  - DOMAIN-KEYWORD,madouqu,REJECT
+  - DOMAIN-SUFFIX,haij.net,REJECT
+  - DOMAIN-SUFFIX,madou.io,REJECT
+  # === 动漫/追番网站 ===
+  - DOMAIN-SUFFIX,gamer.com.tw,REJECT
+  - DOMAIN-SUFFIX,ani.gamer.com.tw,REJECT
+  - DOMAIN-SUFFIX,acg.gamer.com.tw,REJECT
+  - DOMAIN-SUFFIX,yhdmp.com,REJECT
+  - DOMAIN-SUFFIX,yhdmp.net,REJECT
+  - DOMAIN-SUFFIX,yhdmp.cc,REJECT
+  - DOMAIN-SUFFIX,agefans.org,REJECT
+  - DOMAIN-SUFFIX,agefans.com,REJECT
+  - DOMAIN-SUFFIX,agefans.net,REJECT
+  - DOMAIN-SUFFIX,agemys.org,REJECT
+  - DOMAIN-SUFFIX,agemys.com,REJECT
+  - DOMAIN-SUFFIX,agemys.net,REJECT
+  - DOMAIN-SUFFIX,agemys.cc,REJECT
+  - DOMAIN-SUFFIX,age.tv,REJECT
+  - DOMAIN-SUFFIX,dmzj.com,REJECT
+  - DOMAIN-SUFFIX,idmzj.com,REJECT
+  - DOMAIN-SUFFIX,dongmanzhijia.com,REJECT
+  - DOMAIN-SUFFIX,yinghuacd.com,REJECT
+  - DOMAIN-SUFFIX,imomoe.in,REJECT
+  - DOMAIN-SUFFIX,imomoe.ai,REJECT
+  - DOMAIN-SUFFIX,omofun.tv,REJECT
+  - DOMAIN-SUFFIX,omofun.com,REJECT
+  - DOMAIN-SUFFIX,bimibimi.me,REJECT
+  - DOMAIN-SUFFIX,nicotv.me,REJECT
+  - DOMAIN-SUFFIX,nicotv.cc,REJECT
+  - DOMAIN-SUFFIX,girigiri.love,REJECT
+  - DOMAIN-SUFFIX,bangumi.tv,REJECT
+  - DOMAIN-SUFFIX,bgm.tv,REJECT
+  - DOMAIN-SUFFIX,bangumi.moe,REJECT
+  - DOMAIN-SUFFIX,mikanani.me,REJECT
+  - DOMAIN-SUFFIX,mikanime.tv,REJECT
+  - DOMAIN-SUFFIX,nyaa.si,REJECT
+  - DOMAIN-SUFFIX,acg.rip,REJECT
+  - DOMAIN-SUFFIX,dmhy.org,REJECT
+  - DOMAIN-SUFFIX,share.dmhy.org,REJECT
+  - DOMAIN-SUFFIX,donghua.agefans.com,REJECT
+  - DOMAIN-SUFFIX,anime1.me,REJECT
+  - DOMAIN-SUFFIX,animeflv.net,REJECT
+  - DOMAIN-SUFFIX,gogoanime.co,REJECT
+  - DOMAIN-SUFFIX,gogoanimes.fi,REJECT
+  - DOMAIN-SUFFIX,9anime.to,REJECT
+  - DOMAIN-SUFFIX,crunchyroll.com,REJECT
+  - DOMAIN-SUFFIX,funimation.com,REJECT
+  - DOMAIN-SUFFIX,myanimelist.net,REJECT
+  - DOMAIN-SUFFIX,anilist.co,REJECT
+  # === 国内视频平台 ===
+  - DOMAIN-SUFFIX,douyin.com,REJECT
+  - DOMAIN-SUFFIX,douyinvod.com,REJECT
+  - DOMAIN-SUFFIX,douyincdn.com,REJECT
+  - DOMAIN-SUFFIX,douyinpic.com,REJECT
+  - DOMAIN-SUFFIX,amemv.com,REJECT
+  - DOMAIN-SUFFIX,ixigua.com,REJECT
+  - DOMAIN-SUFFIX,pstatp.com,REJECT
+  - DOMAIN-SUFFIX,snssdk.com,REJECT
+  - DOMAIN-SUFFIX,toutiao.com,REJECT
+  - DOMAIN-SUFFIX,toutiaoimg.com,REJECT
+  - DOMAIN-SUFFIX,toutiaocdn.com,REJECT
+  - DOMAIN-SUFFIX,bytedance.com,REJECT
+  - DOMAIN-SUFFIX,byteimg.com,REJECT
+  - DOMAIN-SUFFIX,bytegoofy.com,REJECT
+  - DOMAIN-SUFFIX,kuaishou.com,REJECT
+  - DOMAIN-SUFFIX,kuaishouzt.com,REJECT
+  - DOMAIN-SUFFIX,gifshow.com,REJECT
+  - DOMAIN-SUFFIX,yxixy.com,REJECT
+  - DOMAIN-SUFFIX,iqiyi.com,REJECT
+  - DOMAIN-SUFFIX,iqiyipic.com,REJECT
+  - DOMAIN-SUFFIX,qiyi.com,REJECT
+  - DOMAIN-SUFFIX,qiyipic.com,REJECT
+  - DOMAIN-SUFFIX,71.am,REJECT
+  - DOMAIN-SUFFIX,youku.com,REJECT
+  - DOMAIN-SUFFIX,ykimg.com,REJECT
+  - DOMAIN-SUFFIX,soku.com,REJECT
+  - DOMAIN-SUFFIX,tudou.com,REJECT
+  - DOMAIN-SUFFIX,v.qq.com,REJECT
+  - DOMAIN-SUFFIX,video.qq.com,REJECT
+  - DOMAIN-SUFFIX,film.qq.com,REJECT
+  - DOMAIN-SUFFIX,mgtv.com,REJECT
+  - DOMAIN-SUFFIX,hunantv.com,REJECT
+  - DOMAIN-SUFFIX,sohu.com,REJECT
+  - DOMAIN-SUFFIX,tv.sohu.com,REJECT
+  - DOMAIN-SUFFIX,le.com,REJECT
+  - DOMAIN-SUFFIX,acfun.cn,REJECT
+  - DOMAIN-SUFFIX,olevod.com,REJECT
+  - DOMAIN-KEYWORD,olevod,REJECT
+  - DOMAIN-SUFFIX,aixifan.com,REJECT
+  # === 大规模域名列表 ===
+  - RULE-SET,porn-domains,REJECT
+  # === 白名单 ===
+  - DOMAIN,ccwu.cc,DIRECT
