@@ -41,6 +41,11 @@ HOSTS_BLOCK='# === Antidistractor: bilibili block ===
 0.0.0.0 bilivideo.cn
 0.0.0.0 biliapi.net
 0.0.0.0 biliapi.com
+0.0.0.0 zuoleme.com
+0.0.0.0 www.zuoleme.com
+0.0.0.0 gpgjqw.com
+0.0.0.0 www.gpgjqw.com
+0.0.0.0 igq.gpgjqw.com
 # === End Antidistractor ==='
 
 log() {
