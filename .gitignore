@@ -2,3 +2,6 @@ target/
 **/*.rs.bk
 *.log
 .claude/
+# Android build cache
+antidistractor-android/.gradle/
+antidistractor-android/app/build/
