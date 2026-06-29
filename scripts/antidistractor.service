@@ -5,8 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/home/wucy/Workspace/antidistractor/target/release/antidistractor --daemon
-WorkingDirectory=/home/wucy/Workspace/antidistractor
+ExecStart=/usr/local/bin/antidistractor --daemon
+WorkingDirectory=/usr/local/bin
 Restart=on-failure
 RestartSec=5
 User=root

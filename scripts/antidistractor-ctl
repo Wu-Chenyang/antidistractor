@@ -2,8 +2,20 @@
 # antidistractor-ctl — Guardian control helper
 # 以 root 身份运行（sudoers NOPASSWD 配置），连接 Unix socket 发送单条 JSON 命令。
 #
-# 用法：antidistractor-ctl '{"cmd":"focus_mode","enabled":true}'
-#       antidistractor-ctl '{"cmd":"status"}'
+# 支持的命令：
+#   {"cmd":"status"}
+#   {"cmd":"block","domains":["bilibili.com"]}
+#   {"cmd":"unblock","domains":["bilibili.com"]}
+#   {"cmd":"sync","blocked_domains":["bilibili.com"],"blocked_apps":["steam"]}
+#   {"cmd":"block_apps","apps":["steam"]}
+#   {"cmd":"unblock_apps","apps":["steam"]}
+#   {"cmd":"block_app","names":["WeChat"],"paths":[]}
+#   {"cmd":"unblock_app","names":["WeChat"],"paths":[]}
+#   {"cmd":"focus_mode","enabled":true,"domains":["tiktok.com"]}
+#   {"cmd":"freeze_app","names":["Bilibili"]}
+#   {"cmd":"thaw_app","names":["Bilibili"]}
+#
+# 用法：antidistractor-ctl '{"cmd":"sync","blocked_domains":["bilibili.com"],"blocked_apps":[]}'
 
 set -euo pipefail
 

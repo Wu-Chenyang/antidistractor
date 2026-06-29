@@ -104,7 +104,7 @@ check_override_file() {
     # Ensure the override YAML file exists.
     # This file SHOULD be chattr +i, so if it's missing, something serious happened.
     # Restore from the backup kept in the project repo.
-    local BACKUP="/home/wucy/Workspace/antidistractor/scripts/override-backup.yaml"
+    local BACKUP="/usr/local/share/antidistractor/override-backup.yaml"
     if [ ! -f "$OVERRIDE_FILE" ] && [ -f "$BACKUP" ]; then
         log "REPAIR: override file missing, restoring from backup..."
         cp "$BACKUP" "$OVERRIDE_FILE"

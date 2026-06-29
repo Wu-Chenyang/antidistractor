@@ -20,13 +20,21 @@ pub enum ControlCmd {
     Block { domains: Vec<String> },
     /// 从 blocklist 移除域名
     Unblock { domains: Vec<String> },
+    /// 全量同步屏蔽集合（原子替换，acticat passive-block-engine 专用）
+    /// 替换当前所有动态屏蔽域名和应用，实现原子 diff 语义。
+    Sync {
+        #[serde(default)]
+        blocked_domains: Vec<String>,
+        #[serde(default)]
+        blocked_apps: Vec<String>,
+    },
     /// 开启/关闭专注模式
     FocusMode {
         enabled: bool,
         #[serde(default)]
         domains: Vec<String>,
     },
-    /// 阻止特定应用启动
+    /// 阻止特定应用启动（通过路径或进程名）
     BlockApp {
         #[serde(default)]
         paths: Vec<String>,
@@ -39,6 +47,16 @@ pub enum ControlCmd {
         paths: Vec<String>,
         #[serde(default)]
         names: Vec<String>,
+    },
+    /// 批量屏蔽应用（acticat 接口别名，apps 字段映射到 names）
+    BlockApps {
+        #[serde(default)]
+        apps: Vec<String>,
+    },
+    /// 批量解除应用屏蔽（acticat 接口别名）
+    UnblockApps {
+        #[serde(default)]
+        apps: Vec<String>,
     },
     /// 冻结进程（SIGSTOP）
     FreezeApp { names: Vec<String> },
@@ -61,7 +79,10 @@ pub struct ControlResp {
 #[derive(Serialize)]
 pub struct StatusPayload {
     pub focus_mode: bool,
+    /// 当前动态屏蔽的域名（历史字段名，保留向后兼容）
     pub dynamic_blocked: Vec<String>,
+    /// 当前动态屏蔽的域名（acticat 接口字段名，与 dynamic_blocked 内容相同）
+    pub blocked_domains: Vec<String>,
     pub blocked_apps: BlockedAppsPayload,
     pub frozen_apps: Vec<String>,
     pub uptime_seconds: u64,
@@ -172,6 +193,33 @@ fn handle_cmd_linux(
             }
         }
 
+        ControlCmd::Sync { blocked_domains, blocked_apps: new_app_names } => {
+            // 原子替换：先清空所有动态屏蔽，再批量添加新集合
+            let mut mgr = ebpf.lock().unwrap();
+            let mut db = dynamic_blocked.lock().unwrap();
+            // 清空现有域名屏蔽
+            for d in db.iter() { let _ = mgr.remove_domain(d); }
+            db.clear();
+            // 添加新域名
+            let mut errs = Vec::new();
+            for d in &blocked_domains {
+                match mgr.add_domain(d) {
+                    Ok(_) => db.push(d.clone()),
+                    Err(e) => errs.push(format!("{d}: {e}")),
+                }
+            }
+            // 替换应用屏蔽集合（用 names 字段）
+            let mut app_set = blocked_apps.lock().unwrap();
+            app_set.names.clear();
+            for n in new_app_names { app_set.names.insert(n); }
+            drop(db); drop(app_set);
+            if errs.is_empty() {
+                ControlResp { ok: true, error: None, status: None }
+            } else {
+                ControlResp { ok: false, error: Some(errs.join("; ")), status: None }
+            }
+        }
+
         ControlCmd::FocusMode { enabled, domains } => {
             let mut mgr = ebpf.lock().unwrap();
             let mut fm = focus_mode_active.lock().unwrap();
@@ -203,6 +251,20 @@ fn handle_cmd_linux(
             let mut set = blocked_apps.lock().unwrap();
             for p in &paths { set.paths.remove(p); }
             for n in &names { set.names.remove(n); }
+            ControlResp { ok: true, error: None, status: None }
+        }
+
+        ControlCmd::BlockApps { apps } => {
+            // acticat 接口别名：apps 字段映射到 names
+            let mut set = blocked_apps.lock().unwrap();
+            for n in apps { set.names.insert(n); }
+            ControlResp { ok: true, error: None, status: None }
+        }
+
+        ControlCmd::UnblockApps { apps } => {
+            // acticat 接口别名：apps 字段映射到 names
+            let mut set = blocked_apps.lock().unwrap();
+            for n in &apps { set.names.remove(n); }
             ControlResp { ok: true, error: None, status: None }
         }
 
@@ -255,6 +317,8 @@ fn handle_cmd_linux(
                 error: None,
                 status: Some(StatusPayload {
                     focus_mode: fm,
+                    // blocked_domains 与 dynamic_blocked 内容相同，acticat 接口字段
+                    blocked_domains: db.clone(),
                     dynamic_blocked: db,
                     blocked_apps: BlockedAppsPayload { paths, names },
                     frozen_apps,
@@ -361,6 +425,32 @@ fn handle_cmd_macos(
             }
         }
 
+        ControlCmd::Sync { blocked_domains, blocked_apps: new_app_names } => {
+            // 原子替换：先清空所有动态屏蔽，再批量添加新集合
+            let mut blocker = pf.lock().unwrap();
+            let mut db = dynamic_blocked.lock().unwrap();
+            // 清空现有域名屏蔽
+            for d in db.iter() { let _ = blocker.remove_domain(d); }
+            db.clear();
+            // 添加新域名
+            let mut errs = Vec::new();
+            for d in &blocked_domains {
+                match blocker.add_domain(d) {
+                    Ok(()) => db.push(d.clone()),
+                    Err(e) => errs.push(format!("{d}: {e}")),
+                }
+            }
+            // 替换应用屏蔽集合（用 names 字段）
+            let mut app_set = blocked_apps.lock().unwrap();
+            app_set.names.clear();
+            for n in new_app_names { app_set.names.insert(n); }
+            if errs.is_empty() {
+                ControlResp { ok: true, error: None, status: None }
+            } else {
+                ControlResp { ok: false, error: Some(errs.join("; ")), status: None }
+            }
+        }
+
         ControlCmd::FocusMode { enabled, domains } => {
             let mut blocker = pf.lock().unwrap();
             let mut fm = focus_mode_active.lock().unwrap();
@@ -392,6 +482,18 @@ fn handle_cmd_macos(
             let mut set = blocked_apps.lock().unwrap();
             for p in &paths { set.paths.remove(p); }
             for n in &names { set.names.remove(n); }
+            ControlResp { ok: true, error: None, status: None }
+        }
+
+        ControlCmd::BlockApps { apps } => {
+            let mut set = blocked_apps.lock().unwrap();
+            for n in apps { set.names.insert(n); }
+            ControlResp { ok: true, error: None, status: None }
+        }
+
+        ControlCmd::UnblockApps { apps } => {
+            let mut set = blocked_apps.lock().unwrap();
+            for n in &apps { set.names.remove(n); }
             ControlResp { ok: true, error: None, status: None }
         }
 
@@ -435,7 +537,6 @@ fn handle_cmd_macos(
             let db = dynamic_blocked.lock().unwrap().clone();
             let fm = *focus_mode_active.lock().unwrap();
             let blocker = pf.lock().unwrap();
-            // all_blocked includes both default and dynamic domains
             let _all_blocked: Vec<String> = {
                 let mut v = blocker.blocked_domains();
                 v.sort();
@@ -454,6 +555,7 @@ fn handle_cmd_macos(
                 error: None,
                 status: Some(StatusPayload {
                     focus_mode: fm,
+                    blocked_domains: db.clone(),
                     dynamic_blocked: db,
                     blocked_apps: BlockedAppsPayload { paths, names },
                     frozen_apps,
@@ -563,5 +665,61 @@ mod tests {
         assert!(s.contains(r#""ok":false"#));
         assert!(s.contains(r#""error":"oops""#));
         assert!(!s.contains("status"));
+    }
+
+    // ── 新命令测试（acticat 集成接口）──
+
+    #[test]
+    fn test_sync_parse() {
+        let cmd = parse(r#"{"cmd":"sync","blocked_domains":["bilibili.com","youtube.com"],"blocked_apps":["steam"]}"#).unwrap();
+        if let ControlCmd::Sync { blocked_domains, blocked_apps } = cmd {
+            assert_eq!(blocked_domains, vec!["bilibili.com", "youtube.com"]);
+            assert_eq!(blocked_apps, vec!["steam"]);
+        } else { panic!("wrong variant"); }
+    }
+
+    #[test]
+    fn test_sync_empty() {
+        let cmd = parse(r#"{"cmd":"sync","blocked_domains":[],"blocked_apps":[]}"#).unwrap();
+        if let ControlCmd::Sync { blocked_domains, blocked_apps } = cmd {
+            assert!(blocked_domains.is_empty());
+            assert!(blocked_apps.is_empty());
+        } else { panic!("wrong variant"); }
+    }
+
+    #[test]
+    fn test_sync_domains_only() {
+        // blocked_apps 有默认值，可以省略
+        let cmd = parse(r#"{"cmd":"sync","blocked_domains":["tiktok.com"]}"#).unwrap();
+        if let ControlCmd::Sync { blocked_domains, blocked_apps } = cmd {
+            assert_eq!(blocked_domains, vec!["tiktok.com"]);
+            assert!(blocked_apps.is_empty());
+        } else { panic!("wrong variant"); }
+    }
+
+    #[test]
+    fn test_block_apps_alias() {
+        let cmd = parse(r#"{"cmd":"block_apps","apps":["WeChat","steam"]}"#).unwrap();
+        if let ControlCmd::BlockApps { apps } = cmd {
+            assert_eq!(apps.len(), 2);
+            assert!(apps.contains(&"WeChat".to_string()));
+            assert!(apps.contains(&"steam".to_string()));
+        } else { panic!("wrong variant"); }
+    }
+
+    #[test]
+    fn test_unblock_apps_alias() {
+        let cmd = parse(r#"{"cmd":"unblock_apps","apps":["steam"]}"#).unwrap();
+        if let ControlCmd::UnblockApps { apps } = cmd {
+            assert_eq!(apps, vec!["steam"]);
+        } else { panic!("wrong variant"); }
+    }
+
+    #[test]
+    fn test_block_apps_empty() {
+        let cmd = parse(r#"{"cmd":"block_apps","apps":[]}"#).unwrap();
+        if let ControlCmd::BlockApps { apps } = cmd {
+            assert!(apps.is_empty());
+        } else { panic!("wrong variant"); }
     }
 }

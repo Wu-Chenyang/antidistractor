@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/home/wucy/Workspace/antidistractor/scripts/antidistractor-guard.sh
+ExecStart=/usr/local/bin/antidistractor-guard.sh
 Restart=always
 RestartSec=5
 User=root
