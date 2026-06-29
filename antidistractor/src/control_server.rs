@@ -722,4 +722,27 @@ mod tests {
             assert!(apps.is_empty());
         } else { panic!("wrong variant"); }
     }
+
+    #[test]
+    fn test_status_payload_has_blocked_domains() {
+        // StatusPayload 必须包含 blocked_domains 字段（acticat 接口要求）
+        let payload = StatusPayload {
+            focus_mode: false,
+            dynamic_blocked: vec!["bilibili.com".to_string()],
+            blocked_domains: vec!["bilibili.com".to_string()],
+            blocked_apps: BlockedAppsPayload { paths: vec![], names: vec!["steam".to_string()] },
+            frozen_apps: vec![],
+            uptime_seconds: 42,
+            platform: "linux/ebpf".to_string(),
+        };
+        let s = serde_json::to_string(&payload).unwrap();
+        // 验证 blocked_domains 字段存在于序列化输出中
+        assert!(s.contains(r#""blocked_domains""#), "blocked_domains field must be present");
+        assert!(s.contains("bilibili.com"), "blocked domain must appear in output");
+        // 验证 dynamic_blocked 也存在（向后兼容）
+        assert!(s.contains(r#""dynamic_blocked""#), "dynamic_blocked field must be present for backward compat");
+        // 验证 blocked_apps 结构
+        assert!(s.contains(r#""blocked_apps""#), "blocked_apps field must be present");
+        assert!(s.contains("steam"), "blocked app must appear in output");
+    }
 }
