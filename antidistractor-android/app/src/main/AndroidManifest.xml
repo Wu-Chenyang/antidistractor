@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- ── 网络权限 ─────────────────────────────────────────────────── -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <!-- VPN 权限（用户首次使用时系统弹窗确认，之后记住） -->
+    <!-- 无需在 manifest 声明，VpnService.prepare() 会自动处理 -->
+
+    <!-- ── App 使用情况统计（App 屏蔽用） ───────────────────────────── -->
+    <!-- 特殊权限：需要引导用户去设置页手动开启 -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions"
+        xmlns:tools="http://schemas.android.com/tools" />
+
+    <!-- 悬浮窗权限（显示屏蔽覆盖层） -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- 开机自启（守护进程） -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- 防止系统在内存不足时杀死 Service -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <application
+        android:name=".AntidistractorApp"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Antidistractor">
+
+        <!-- ── 主界面 ──────────────────────────────────────────────── -->
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- ── 本地 VPN Service（方案A：域名/网站屏蔽） ────────────── -->
+        <service
+            android:name=".vpn.DnsVpnService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:permission="android.permission.BIND_VPN_SERVICE">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.net.VpnService.SUPPORTS_ALWAYS_ON"
+                android:value="true" />
+        </service>
+
+        <!-- ── App 监控 Service（方案C：App 屏蔽） ──────────────────── -->
+        <service
+            android:name=".blocker.AppBlockerService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse" />
+
+        <!-- ── HTTP 控制服务器 Service ───────────────────────────────── -->
+        <service
+            android:name=".server.ControlServerService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse" />
+
+        <!-- ── 屏蔽覆盖层 Activity（全屏，无任务栈） ─────────────────── -->
+        <activity
+            android:name=".ui.ShieldActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:showOnLockScreen="false"
+            android:theme="@style/Theme.Shield" />
+
+        <!-- ── 开机自启 Receiver ──────────────────────────────────────── -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+</manifest>
