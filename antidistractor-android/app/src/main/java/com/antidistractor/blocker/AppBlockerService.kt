@@ -2,6 +2,7 @@ package com.antidistractor.blocker
 
 import android.app.*
 import android.app.usage.UsageStatsManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Handler
@@ -41,14 +42,13 @@ class AppBlockerService : Service() {
 
         /** 检查应用是否有 UsageStats 权限 */
         fun hasUsageStatsPermission(ctx: Context): Boolean {
-            val usm = ctx.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-            val now = System.currentTimeMillis()
-            val stats = usm.queryUsageStats(
-                UsageStatsManager.INTERVAL_DAILY,
-                now - 1000 * 60,
-                now
+            val appOps = ctx.getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
+            val mode = appOps.unsafeCheckOpNoThrow(
+                android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
+                android.os.Process.myUid(),
+                ctx.packageName
             )
-            return stats != null && stats.isNotEmpty()
+            return mode == android.app.AppOpsManager.MODE_ALLOWED
         }
     }
 
@@ -62,6 +62,17 @@ class AppBlockerService : Service() {
     // 上一次前台 App，避免重复触发
     @Volatile
     private var lastForegroundPackage: String = ""
+
+    // 监听 blocklist 更新广播
+    private val blocklistReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == com.antidistractor.server.ControlServerService.ACTION_BLOCKLIST_UPDATED) {
+                val updated = BlocklistStore.load(context)
+                blockedPackages = updated.packageNames.toSet()
+                Log.i(TAG, "Blocklist updated via broadcast: ${blockedPackages.size} packages")
+            }
+        }
+    }
 
     // ── Lifecycle ─────────────────────────────────────────────────────────
 
@@ -77,6 +88,7 @@ class AppBlockerService : Service() {
 
     override fun onDestroy() {
         stopBlocking()
+        unregisterReceiver(blocklistReceiver)
         super.onDestroy()
     }
 
@@ -89,6 +101,12 @@ class AppBlockerService : Service() {
         val blocklist = BlocklistStore.load(this)
         blockedPackages = blocklist.packageNames.toSet()
         Log.i(TAG, "AppBlocker starting, blocking ${blockedPackages.size} packages")
+
+        // 注册广播接收器，监听 blocklist 更新
+        val filter = android.content.IntentFilter(
+            com.antidistractor.server.ControlServerService.ACTION_BLOCKLIST_UPDATED
+        )
+        registerReceiver(blocklistReceiver, filter, RECEIVER_NOT_EXPORTED)
 
         startForeground(NOTIFICATION_ID, buildNotification())
         isRunning = true

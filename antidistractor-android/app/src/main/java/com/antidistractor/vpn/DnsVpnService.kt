@@ -4,6 +4,8 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
 import android.net.VpnService
 import android.os.ParcelFileDescriptor
@@ -64,6 +66,17 @@ class DnsVpnService : VpnService() {
     @Volatile
     private var blockedDomains: Set<String> = emptySet()
 
+    // 监听 blocklist 更新广播
+    private val blocklistReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == com.antidistractor.server.ControlServerService.ACTION_BLOCKLIST_UPDATED) {
+                val updated = BlocklistStore.load(context)
+                blockedDomains = updated.domains.toSet()
+                Log.i(TAG, "Blocklist updated via broadcast: ${blockedDomains.size} domains")
+            }
+        }
+    }
+
     // ── Lifecycle ─────────────────────────────────────────────────────────
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -89,6 +102,12 @@ class DnsVpnService : VpnService() {
         val blocklist = BlocklistStore.load(this)
         blockedDomains = blocklist.domains.toSet()
         Log.i(TAG, "Starting VPN, blocking ${blockedDomains.size} domains")
+
+        // 注册广播接收器
+        val filter = android.content.IntentFilter(
+            com.antidistractor.server.ControlServerService.ACTION_BLOCKLIST_UPDATED
+        )
+        registerReceiver(blocklistReceiver, filter, RECEIVER_NOT_EXPORTED)
 
         // Build VPN interface
         val builder = Builder()
@@ -125,6 +144,7 @@ class DnsVpnService : VpnService() {
         vpnInterface?.close()
         vpnInterface = null
         stopForeground(STOP_FOREGROUND_REMOVE)
+        try { unregisterReceiver(blocklistReceiver) } catch (_: Exception) {}
         Log.i(TAG, "VPN stopped")
     }
 

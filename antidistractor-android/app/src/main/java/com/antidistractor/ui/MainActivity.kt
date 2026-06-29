@@ -42,6 +42,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        // 重新从 SharedPreferences 加载，确保反映 HTTP API 写入的最新状态
+        BlocklistStore.loadFlags(this)
         updateStatus()
     }
 
