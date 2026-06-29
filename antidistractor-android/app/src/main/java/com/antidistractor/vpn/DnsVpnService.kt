@@ -7,6 +7,10 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.VpnService
 import android.os.ParcelFileDescriptor
 import android.util.Log
@@ -66,6 +70,11 @@ class DnsVpnService : VpnService() {
     @Volatile
     private var blockedDomains: Set<String> = emptySet()
 
+    // 底层物理网络（WiFi/移动数据），用于绕过 VPN 转发 DNS
+    @Volatile
+    private var underlyingNetwork: Network? = null
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+
     // 监听 blocklist 更新广播
     private val blocklistReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -109,13 +118,42 @@ class DnsVpnService : VpnService() {
         )
         registerReceiver(blocklistReceiver, filter, RECEIVER_NOT_EXPORTED)
 
+        // 追踪底层物理网络（非 VPN），用于转发 DNS 查询时绕过 VPN 隧道
+        val cm = getSystemService(ConnectivityManager::class.java)
+        val req = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+            .build()
+        val cb = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                underlyingNetwork = network
+                Log.i(TAG, "Underlying network available: $network")
+            }
+            override fun onLost(network: Network) {
+                if (underlyingNetwork == network) underlyingNetwork = null
+            }
+        }
+        cm.registerNetworkCallback(req, cb)
+        networkCallback = cb
+
         // Build VPN interface
+        // Disable Private DNS (DoT) so the system uses plain UDP 53 that we intercept.
+        // Private DNS would bypass our fake DNS server entirely.
+        try {
+            android.provider.Settings.Global.putString(
+                contentResolver, "private_dns_mode", "off"
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not disable Private DNS: ${e.message}")
+        }
+
         val builder = Builder()
             .setSession("Antidistractor")
             .addAddress(TUN_ADDRESS, TUN_PREFIX_LENGTH)
-            // Route only DNS traffic through the VPN (10.0.0.2 = our fake DNS)
+            // Route only our fake DNS address through the VPN.
+            // The system will send DNS queries to 10.0.0.2 which goes through tun0.
             .addRoute(FAKE_DNS, 32)
-            // Set our fake DNS as the DNS server for the device
+            // Tell the system to use our fake DNS server
             .addDnsServer(FAKE_DNS)
             .setMtu(1500)
             .setBlocking(false)
@@ -145,6 +183,12 @@ class DnsVpnService : VpnService() {
         vpnInterface = null
         stopForeground(STOP_FOREGROUND_REMOVE)
         try { unregisterReceiver(blocklistReceiver) } catch (_: Exception) {}
+        networkCallback?.let {
+            try { getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(it) }
+            catch (_: Exception) {}
+        }
+        networkCallback = null
+        underlyingNetwork = null
         Log.i(TAG, "VPN stopped")
     }
 
@@ -183,6 +227,11 @@ class DnsVpnService : VpnService() {
 
             buffer.limit(length)
 
+            // Log first byte to see what kind of packets we're getting
+            val firstByte = buffer[0].toInt() and 0xFF
+            val ipVer = firstByte shr 4
+            Log.d(TAG, "Packet: len=$length ipVer=$ipVer firstByte=0x${firstByte.toString(16)}")
+
             // Parse IP header to check if this is UDP to our fake DNS
             if (isDnsQuery(buffer, length)) {
                 // Extract DNS payload and handle it
@@ -220,26 +269,27 @@ class DnsVpnService : VpnService() {
         val protocol = buf[9].toInt() and 0xFF
         if (protocol != 17) return false  // 17 = UDP
         val ihl = (buf[0].toInt() and 0x0F) * 4
-        val dstIp = "${buf[ihl + 16].toInt() and 0xFF}.${buf[ihl + 17].toInt() and 0xFF}" +
-                    ".${buf[ihl + 18].toInt() and 0xFF}.${buf[ihl + 19].toInt() and 0xFF}"
-        // Destination should be our fake DNS
-        if (dstIp != FAKE_DNS.split(".").let {
-                "${it[0]}.${it[1]}.${it[2]}.${it[3]}"
-            }) return false
-        val dstPort = ((buf[ihl + 22].toInt() and 0xFF) shl 8) or (buf[ihl + 23].toInt() and 0xFF)
+        // Destination IP is at fixed offset 16-19 in the IP header (from packet start)
+        val dstIp = "${buf[16].toInt() and 0xFF}.${buf[17].toInt() and 0xFF}" +
+                    ".${buf[18].toInt() and 0xFF}.${buf[19].toInt() and 0xFF}"
+        // Destination should be our fake DNS server
+        if (dstIp != FAKE_DNS) return false
+        // UDP destination port is at offset ihl+2 (UDP header: src(2) dst(2) len(2) chk(2))
+        val dstPort = ((buf[ihl + 2].toInt() and 0xFF) shl 8) or (buf[ihl + 3].toInt() and 0xFF)
+        Log.d(TAG, "UDP packet: dst=$dstIp:$dstPort")
         return dstPort == 53
     }
 
     private fun extractDnsPayload(buf: ByteBuffer, length: Int): ByteArray? {
         val ihl = (buf[0].toInt() and 0x0F) * 4
-        val udpStart = ihl
-        val dnsStart = udpStart + 8
+        val dnsStart = ihl + 8  // IP header + UDP header (8 bytes)
         if (dnsStart >= length) return null
         return buf.array().copyOfRange(dnsStart, length)
     }
 
     private fun extractSourcePort(buf: ByteBuffer, length: Int): Int {
         val ihl = (buf[0].toInt() and 0x0F) * 4
+        // UDP source port is at offset ihl+0, ihl+1
         return ((buf[ihl].toInt() and 0xFF) shl 8) or (buf[ihl + 1].toInt() and 0xFF)
     }
 
@@ -328,11 +378,17 @@ class DnsVpnService : VpnService() {
         return query.copyOfRange(0, offset) + answer
     }
 
-    /** Forward DNS query to upstream server and return the response. */
+    /** Forward DNS query to upstream server and return the response.
+     *  Binds the socket to the underlying physical network (not the VPN)
+     *  to avoid routing loops. */
     private fun forwardDnsQuery(query: ByteArray): ByteArray? {
         return try {
             DatagramSocket().use { socket ->
                 socket.soTimeout = 3000
+                // Bind to underlying network so the query goes out via WiFi/mobile,
+                // not back through the VPN tunnel (which would cause a loop).
+                underlyingNetwork?.bindSocket(socket)
+                    ?: protect(socket)  // fallback: use VpnService.protect()
                 val upstream = InetAddress.getByName(UPSTREAM_DNS)
                 val request = DatagramPacket(query, query.size, upstream, UPSTREAM_DNS_PORT)
                 socket.send(request)
@@ -342,7 +398,7 @@ class DnsVpnService : VpnService() {
                 responseBuffer.copyOfRange(0, responsePacket.length)
             }
         } catch (e: Exception) {
-            Log.w(TAG, "DNS forward failed for query: ${e.message}")
+            Log.w(TAG, "DNS forward failed: ${e.message}")
             null
         }
     }
