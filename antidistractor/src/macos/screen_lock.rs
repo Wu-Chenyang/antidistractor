@@ -97,19 +97,38 @@ pub fn is_in_lock_window() -> bool {
 ///
 /// Behavior:
 /// - At 01:00, lock the screen
-/// - Check every 60s whether we're in the lock window
-/// - If the screen is unlocked during 01:00-07:00, re-lock it
+/// - Check every 60s whether we're in the lock window (01:00-07:00)
+/// - If the screen is unlocked during the window, re-lock it
+///
+/// For testing: set LOCK_POLL_SECS=5 and TEST_LOCK_HOUR=<hour> env vars.
 pub fn run_lock_daemon() {
-    info!("[screen-lock] Lock daemon started (forced lock 01:00-07:00)");
+    let poll_secs = std::env::var("LOCK_POLL_SECS")
+        .ok()
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(60);
+
+    info!("[screen-lock] Lock daemon started (forced lock 01:00-07:00, poll={}s)", poll_secs);
 
     let mut last_lock_hour: Option<u32> = None;
 
     loop {
-        std::thread::sleep(Duration::from_secs(60));
+        std::thread::sleep(Duration::from_secs(poll_secs));
 
         let hour = current_hour();
 
-        if is_in_lock_window() {
+        // Support TEST_LOCK_HOUR env var for testing without waiting until 01:00
+        let in_window = if let Ok(h) = std::env::var("TEST_LOCK_HOUR")
+            .ok()
+            .and_then(|s| s.parse::<u32>().ok())
+            .map(Ok::<u32, ()>)
+            .transpose()
+        {
+            current_hour() == h.unwrap_or(99)
+        } else {
+            is_in_lock_window()
+        };
+
+        if in_window {
             // Lock screen at the start of the window or if it got unlocked
             let should_lock = last_lock_hour.map(|h| h != hour).unwrap_or(true)
                 || !is_locked();
