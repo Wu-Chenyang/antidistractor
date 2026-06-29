@@ -1,4 +1,6 @@
 //! App blocker — 使用 fanotify FAN_OPEN_EXEC_PERM 阻止特定应用启动。
+//! Linux-only: fanotify is not available on macOS.
+//! macOS equivalent: see macos/app_watcher.rs
 //!
 //! 监听整个文件系统的 exec 事件（FAN_MARK_FILESYSTEM），对 blocklist 中的路径或
 //! 进程名（basename）回复 FAN_DENY，使进程收到 EACCES 无法启动。

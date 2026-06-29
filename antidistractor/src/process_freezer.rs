@@ -1,8 +1,9 @@
 //! Process freezer — 通过 SIGSTOP/SIGCONT 冻结/恢复进程组。
 //!
-//! 按进程名（basename）在 /proc 中查找所有匹配的 PID，
-//! 对每个 PID 及其同进程组的所有子进程发送信号。
-//! SIGSTOP 不可被捕获或忽略，进程会立即挂起；SIGCONT 恢复。
+//! SIGSTOP/SIGCONT is cross-platform (POSIX) and works on both Linux and macOS.
+//! Process enumeration is platform-specific:
+//!   - Linux: /proc filesystem scan
+//!   - macOS: sysctl(KERN_PROC_ALL) via macos::process_utils
 
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
@@ -26,9 +27,27 @@ impl FreezerState {
     }
 }
 
-/// 在 /proc 中按进程名查找所有匹配的 PID。
-/// 对每个 /proc/<pid>/comm 或 /proc/<pid>/exe basename 进行匹配。
+/// Find all PIDs matching the given process name.
+/// Platform-specific: /proc on Linux, sysctl on macOS.
 fn find_pids_by_name(name: &str) -> Vec<i32> {
+    #[cfg(target_os = "linux")]
+    {
+        find_pids_by_name_linux(name)
+    }
+    #[cfg(target_os = "macos")]
+    {
+        crate::macos::process_utils::find_pids_by_name(name)
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+    {
+        log::warn!("[freezer] find_pids_by_name not implemented for this platform");
+        vec![]
+    }
+}
+
+/// Linux: scan /proc to find processes by name.
+#[cfg(target_os = "linux")]
+fn find_pids_by_name_linux(name: &str) -> Vec<i32> {
     let mut pids = Vec::new();
     let Ok(entries) = std::fs::read_dir("/proc") else { return pids };
 
@@ -55,9 +74,28 @@ fn find_pids_by_name(name: &str) -> Vec<i32> {
     pids
 }
 
-/// 向一个 PID 及其所有子进程（递归）发送信号。
-/// 先冻结子进程再冻结父进程，避免父进程 fork 新子进程漏掉。
+/// Send signal to a process and its entire subtree.
+/// Returns list of PIDs that were successfully signaled.
 fn signal_process_tree(root_pid: i32, sig: libc::c_int) -> Vec<i32> {
+    #[cfg(target_os = "linux")]
+    {
+        signal_process_tree_linux(root_pid, sig)
+    }
+    #[cfg(target_os = "macos")]
+    {
+        crate::macos::process_utils::signal_process_tree(root_pid, sig)
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+    {
+        // Fallback: just signal the root process, no tree traversal
+        let ret = unsafe { libc::kill(root_pid, sig) };
+        if ret == 0 { vec![root_pid] } else { vec![] }
+    }
+}
+
+/// Linux: traverse /proc to build parent-child map for tree traversal.
+#[cfg(target_os = "linux")]
+fn signal_process_tree_linux(root_pid: i32, sig: libc::c_int) -> Vec<i32> {
     // 构建 PID → children 映射
     let mut children: HashMap<i32, Vec<i32>> = HashMap::new();
     let Ok(entries) = std::fs::read_dir("/proc") else { return vec![] };

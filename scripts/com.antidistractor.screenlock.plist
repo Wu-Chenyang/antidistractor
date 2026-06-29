@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Antidistractor Screen Lock Daemon (launchd) -->
+    <!-- Enforces screen lock during 01:00-07:00 (same as Linux PAM version) -->
+    <!-- Install: sudo cp this /Library/LaunchDaemons/ && sudo launchctl load /Library/LaunchDaemons/com.antidistractor.screenlock.plist -->
+
+    <key>Label</key>
+    <string>com.antidistractor.screenlock</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/antidistractor</string>
+        <string>--screen-lock-daemon</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>UserName</key>
+    <string>root</string>
+
+    <key>StandardOutPath</key>
+    <string>/var/log/antidistractor-screenlock.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/var/log/antidistractor-screenlock.log</string>
+</dict>
+</plist>

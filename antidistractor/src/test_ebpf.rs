@@ -1,8 +1,16 @@
+//! Linux-only eBPF integration test binary.
+//! On Linux: cargo build --package antidistractor --bin test_ebpf
+//! On macOS: this binary is not functional (eBPF requires Linux kernel).
+
+#[cfg(target_os = "linux")]
 mod ebpf;
 
+#[cfg(target_os = "linux")]
 use std::error::Error;
+#[cfg(target_os = "linux")]
 use std::process::Command;
 
+#[cfg(target_os = "linux")]
 fn main() -> Result<(), Box<dyn Error>> {
     println!("--- Antidistractor eBPF Integration Test ---");
 
@@ -59,4 +67,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("--- Test Complete ---");
     Ok(())
+}
+
+#[cfg(not(target_os = "linux"))]
+fn main() {
+    eprintln!("test_ebpf is Linux-only. eBPF requires the Linux kernel.");
+    eprintln!("On macOS, use the PF-based blocking (antidistractor --daemon).");
+    std::process::exit(1);
 }

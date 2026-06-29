@@ -1,0 +1,35 @@
+#!/bin/bash
+# antidistractor-ctl — macOS control helper
+# Connects to the Unix socket and sends a JSON command.
+#
+# Usage:
+#   antidistractor-ctl-macos '{"cmd":"status"}'
+#   antidistractor-ctl-macos '{"cmd":"block","domains":["tiktok.com"]}'
+#   antidistractor-ctl-macos '{"cmd":"focus_mode","enabled":true}'
+#   antidistractor-ctl-macos '{"cmd":"block_app","names":["WeChat"]}'
+#   antidistractor-ctl-macos '{"cmd":"freeze_app","names":["Bilibili"]}'
+
+set -euo pipefail
+
+SOCKET=/var/run/antidistractor.sock
+
+if [ ! -S "$SOCKET" ]; then
+    echo '{"ok":false,"error":"socket not found — is antidistractor running?"}' >&1
+    exit 1
+fi
+
+if [ $# -ne 1 ]; then
+    echo '{"ok":false,"error":"usage: antidistractor-ctl-macos <json>"}' >&1
+    exit 1
+fi
+
+# Use nc (netcat) on macOS — available by default
+# socat is preferred if installed: brew install socat
+if command -v socat &>/dev/null; then
+    echo "$1" | socat -t3 - UNIX-CONNECT:"$SOCKET"
+elif command -v nc &>/dev/null; then
+    echo "$1" | nc -U -q1 "$SOCKET"
+else
+    echo '{"ok":false,"error":"socat or nc required"}' >&1
+    exit 1
+fi

@@ -7,14 +7,14 @@ edition = "2021"
 name = "antidistractor"
 path = "src/main.rs"
 
+# test_ebpf is Linux-only (uses eBPF loader).
+# On Linux: cargo build --package antidistractor --bin test_ebpf
+# On macOS: this binary is excluded (not compiled).
 [[bin]]
 name = "test_ebpf"
 path = "src/test_ebpf.rs"
 
 [dependencies]
-aya = { git = "https://github.com/aya-rs/aya", branch = "main" }
-aya-log = { git = "https://github.com/aya-rs/aya", branch = "main" }
-antidistractor-common = { path = "../antidistractor-common", features = ["user"] }
 tokio = { version = "1.0", features = ["full"] }
 ratatui = "0.26"
 crossterm = { version = "0.27", features = ["events"] }
@@ -25,3 +25,9 @@ log = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 libc = "0.2"
+
+# Linux-only dependencies (eBPF support)
+[target.'cfg(target_os = "linux")'.dependencies]
+aya = { git = "https://github.com/aya-rs/aya", branch = "main" }
+aya-log = { git = "https://github.com/aya-rs/aya", branch = "main" }
+antidistractor-common = { path = "../antidistractor-common", features = ["user"] }

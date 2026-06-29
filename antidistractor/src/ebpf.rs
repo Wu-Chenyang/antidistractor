@@ -1,3 +1,6 @@
+//! Linux-only eBPF TC classifier manager.
+//! macOS equivalent: see macos/pf_blocker.rs
+
 use aya::{
     maps::HashMap,
     programs::{tc, TcAttachType},

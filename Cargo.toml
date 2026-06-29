@@ -1,9 +1,11 @@
 [workspace]
 members = [
     "antidistractor",
-    "antidistractor-ebpf",
     "antidistractor-common",
 ]
+# antidistractor-ebpf is Linux-only (requires eBPF toolchain).
+# On Linux, build it separately: cargo build --package antidistractor-ebpf --target bpfel-unknown-none
+# See Makefile for the full build workflow.
 resolver = "2"
 
 [profile.release]

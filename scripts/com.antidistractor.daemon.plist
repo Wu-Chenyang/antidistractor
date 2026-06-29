@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Antidistractor macOS Daemon (launchd) -->
+    <!-- Install: sudo cp this /Library/LaunchDaemons/ && sudo launchctl load /Library/LaunchDaemons/com.antidistractor.daemon.plist -->
+    <!-- Uninstall: sudo launchctl unload /Library/LaunchDaemons/com.antidistractor.daemon.plist && sudo rm /Library/LaunchDaemons/com.antidistractor.daemon.plist -->
+
+    <key>Label</key>
+    <string>com.antidistractor.daemon</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/antidistractor</string>
+        <string>--daemon</string>
+    </array>
+
+    <!-- Start at boot -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Restart if it crashes -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Run as root (required for pfctl and /etc/hosts modification) -->
+    <key>UserName</key>
+    <string>root</string>
+
+    <!-- Log output -->
+    <key>StandardOutPath</key>
+    <string>/var/log/antidistractor.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/var/log/antidistractor.log</string>
+
+    <!-- Environment -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>RUST_LOG</key>
+        <string>info</string>
+    </dict>
+</dict>
+</plist>
