@@ -1,0 +1,245 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.antidistractor"
+4    android:versionCode="1"
+5    android:versionName="1.0.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="26"
+9        android:targetSdkVersion="36" />
+10
+11    <!-- ── 网络权限 ─────────────────────────────────────────────────── -->
+12    <uses-permission android:name="android.permission.INTERNET" />
+12-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:5:5-67
+12-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:5:22-64
+13    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+13-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:6:5-77
+13-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:6:22-74
+14    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+14-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:7:5-89
+14-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:7:22-86
+15
+16    <!-- VPN 权限（用户首次使用时系统弹窗确认，之后记住） -->
+17    <!-- 无需在 manifest 声明，VpnService.prepare() 会自动处理 -->
+18
+19
+20    <!-- ── App 使用情况统计（App 屏蔽用） ───────────────────────────── -->
+21    <!-- 特殊权限：需要引导用户去设置页手动开启 -->
+22    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
+22-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:14:5-16:58
+22-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:14:22-75
+23
+24    <!-- 悬浮窗权限（显示屏蔽覆盖层） -->
+25    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+25-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:19:5-78
+25-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:19:22-75
+26
+27    <!-- 开机自启（守护进程） -->
+28    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+28-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:22:5-81
+28-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:22:22-78
+29
+30    <!-- 防止系统在内存不足时杀死 Service -->
+31    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+31-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:25:5-95
+31-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:25:22-92
+32
+33    <permission
+33-->[androidx.core:core:1.13.1] /Users/wucy/.gradle/caches/8.9/transforms/3c0a2167b0abab72a2760fb9e68067a4/transformed/core-1.13.1/AndroidManifest.xml:22:5-24:47
+34        android:name="com.antidistractor.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+34-->[androidx.core:core:1.13.1] /Users/wucy/.gradle/caches/8.9/transforms/3c0a2167b0abab72a2760fb9e68067a4/transformed/core-1.13.1/AndroidManifest.xml:23:9-81
+35        android:protectionLevel="signature" />
+35-->[androidx.core:core:1.13.1] /Users/wucy/.gradle/caches/8.9/transforms/3c0a2167b0abab72a2760fb9e68067a4/transformed/core-1.13.1/AndroidManifest.xml:24:9-44
+36
+37    <uses-permission android:name="com.antidistractor.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+37-->[androidx.core:core:1.13.1] /Users/wucy/.gradle/caches/8.9/transforms/3c0a2167b0abab72a2760fb9e68067a4/transformed/core-1.13.1/AndroidManifest.xml:26:5-97
+37-->[androidx.core:core:1.13.1] /Users/wucy/.gradle/caches/8.9/transforms/3c0a2167b0abab72a2760fb9e68067a4/transformed/core-1.13.1/AndroidManifest.xml:26:22-94
+38
+39    <application
+39-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:27:5-91:19
+40        android:name="com.antidistractor.AntidistractorApp"
+40-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:28:9-42
+41        android:allowBackup="false"
+41-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:29:9-36
+42        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+42-->[androidx.core:core:1.13.1] /Users/wucy/.gradle/caches/8.9/transforms/3c0a2167b0abab72a2760fb9e68067a4/transformed/core-1.13.1/AndroidManifest.xml:28:18-86
+43        android:extractNativeLibs="false"
+44        android:icon="@mipmap/ic_launcher"
+44-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:30:9-43
+45        android:label="@string/app_name"
+45-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:31:9-41
+46        android:supportsRtl="true"
+46-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:32:9-35
+47        android:theme="@style/Theme.Antidistractor" >
+47-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:33:9-52
+48
+49        <!-- ── 主界面 ──────────────────────────────────────────────── -->
+50        <activity
+50-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:36:9-44:20
+51            android:name="com.antidistractor.ui.MainActivity"
+51-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:37:13-44
+52            android:exported="true"
+52-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:38:13-36
+53            android:launchMode="singleTop" >
+53-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:39:13-43
+54            <intent-filter>
+54-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:40:13-43:29
+55                <action android:name="android.intent.action.MAIN" />
+55-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:41:17-69
+55-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:41:25-66
+56
+57                <category android:name="android.intent.category.LAUNCHER" />
+57-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:42:17-77
+57-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:42:27-74
+58            </intent-filter>
+59        </activity>
+60
+61        <!-- ── 本地 VPN Service（方案A：域名/网站屏蔽） ────────────── -->
+62        <service
+62-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:47:9-58:19
+63            android:name="com.antidistractor.vpn.DnsVpnService"
+63-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:48:13-46
+64            android:exported="false"
+64-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:49:13-37
+65            android:foregroundServiceType="specialUse"
+65-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:50:13-55
+66            android:permission="android.permission.BIND_VPN_SERVICE" >
+66-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:51:13-69
+67            <intent-filter>
+67-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:52:13-54:29
+68                <action android:name="android.net.VpnService" />
+68-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:53:17-65
+68-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:53:25-62
+69            </intent-filter>
+70
+71            <meta-data
+71-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:55:13-57:40
+72                android:name="android.net.VpnService.SUPPORTS_ALWAYS_ON"
+72-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:56:17-73
+73                android:value="true" />
+73-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:57:17-37
+74        </service>
+75
+76        <!-- ── App 监控 Service（方案C：App 屏蔽） ──────────────────── -->
+77        <service
+77-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:61:9-64:58
+78            android:name="com.antidistractor.blocker.AppBlockerService"
+78-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:62:13-54
+79            android:exported="false"
+79-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:63:13-37
+80            android:foregroundServiceType="specialUse" />
+80-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:64:13-55
+81
+82        <!-- ── HTTP 控制服务器 Service ───────────────────────────────── -->
+83        <service
+83-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:67:9-70:58
+84            android:name="com.antidistractor.server.ControlServerService"
+84-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:68:13-56
+85            android:exported="false"
+85-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:69:13-37
+86            android:foregroundServiceType="specialUse" />
+86-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:70:13-55
+87
+88        <!-- ── 屏蔽覆盖层 Activity（全屏，无任务栈） ─────────────────── -->
+89        <activity
+89-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:73:9-79:51
+90            android:name="com.antidistractor.ui.ShieldActivity"
+90-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:74:13-46
+91            android:excludeFromRecents="true"
+91-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:76:13-46
+92            android:exported="false"
+92-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:75:13-37
+93            android:launchMode="singleInstance"
+93-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:77:13-48
+94            android:showOnLockScreen="false"
+94-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:78:13-45
+95            android:theme="@style/Theme.Shield" />
+95-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:79:13-48
+96
+97        <!-- ── 开机自启 Receiver ──────────────────────────────────────── -->
+98        <receiver
+98-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:82:9-89:20
+99            android:name="com.antidistractor.BootReceiver"
+99-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:83:13-41
+100            android:exported="true" >
+100-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:84:13-36
+101            <intent-filter android:priority="1000" >
+101-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:85:13-88:29
+101-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:85:28-51
+102                <action android:name="android.intent.action.BOOT_COMPLETED" />
+102-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:86:17-79
+102-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:86:25-76
+103                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+103-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:87:17-84
+103-->/Users/wucy/Workspace/antidistractor/antidistractor-android/app/src/main/AndroidManifest.xml:87:25-81
+104            </intent-filter>
+105        </receiver>
+106
+107        <provider
+107-->[androidx.emoji2:emoji2:1.3.0] /Users/wucy/.gradle/caches/8.9/transforms/df692eac07aa1d6560a4e7d4f6d17810/transformed/jetified-emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
+108            android:name="androidx.startup.InitializationProvider"
+108-->[androidx.emoji2:emoji2:1.3.0] /Users/wucy/.gradle/caches/8.9/transforms/df692eac07aa1d6560a4e7d4f6d17810/transformed/jetified-emoji2-1.3.0/AndroidManifest.xml:25:13-67
+109            android:authorities="com.antidistractor.androidx-startup"
+109-->[androidx.emoji2:emoji2:1.3.0] /Users/wucy/.gradle/caches/8.9/transforms/df692eac07aa1d6560a4e7d4f6d17810/transformed/jetified-emoji2-1.3.0/AndroidManifest.xml:26:13-68
+110            android:exported="false" >
+110-->[androidx.emoji2:emoji2:1.3.0] /Users/wucy/.gradle/caches/8.9/transforms/df692eac07aa1d6560a4e7d4f6d17810/transformed/jetified-emoji2-1.3.0/AndroidManifest.xml:27:13-37
+111            <meta-data
+111-->[androidx.emoji2:emoji2:1.3.0] /Users/wucy/.gradle/caches/8.9/transforms/df692eac07aa1d6560a4e7d4f6d17810/transformed/jetified-emoji2-1.3.0/AndroidManifest.xml:29:13-31:52
+112                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+112-->[androidx.emoji2:emoji2:1.3.0] /Users/wucy/.gradle/caches/8.9/transforms/df692eac07aa1d6560a4e7d4f6d17810/transformed/jetified-emoji2-1.3.0/AndroidManifest.xml:30:17-75
+113                android:value="androidx.startup" />
+113-->[androidx.emoji2:emoji2:1.3.0] /Users/wucy/.gradle/caches/8.9/transforms/df692eac07aa1d6560a4e7d4f6d17810/transformed/jetified-emoji2-1.3.0/AndroidManifest.xml:31:17-49
+114            <meta-data
+114-->[androidx.lifecycle:lifecycle-process:2.8.3] /Users/wucy/.gradle/caches/8.9/transforms/9e4d3b243b92d86e4ab2c843bdff8f3e/transformed/jetified-lifecycle-process-2.8.3/AndroidManifest.xml:29:13-31:52
+115                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+115-->[androidx.lifecycle:lifecycle-process:2.8.3] /Users/wucy/.gradle/caches/8.9/transforms/9e4d3b243b92d86e4ab2c843bdff8f3e/transformed/jetified-lifecycle-process-2.8.3/AndroidManifest.xml:30:17-78
+116                android:value="androidx.startup" />
+116-->[androidx.lifecycle:lifecycle-process:2.8.3] /Users/wucy/.gradle/caches/8.9/transforms/9e4d3b243b92d86e4ab2c843bdff8f3e/transformed/jetified-lifecycle-process-2.8.3/AndroidManifest.xml:31:17-49
+117            <meta-data
+117-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/wucy/.gradle/caches/8.9/transforms/40b76cc3d19e88ffea42e584ff7852f5/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:29:13-31:52
+118                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+118-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/wucy/.gradle/caches/8.9/transforms/40b76cc3d19e88ffea42e584ff7852f5/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:30:17-85
+119                android:value="androidx.startup" />
+119-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/wucy/.gradle/caches/8.9/transforms/40b76cc3d19e88ffea42e584ff7852f5/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:31:17-49
+120        </provider>
+121
+122        <receiver
+122-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/wucy/.gradle/caches/8.9/transforms/40b76cc3d19e88ffea42e584ff7852f5/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:34:9-52:20
+123            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+123-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/wucy/.gradle/caches/8.9/transforms/40b76cc3d19e88ffea42e584ff7852f5/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:35:13-76
+124            android:directBootAware="false"
+124-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/wucy/.gradle/caches/8.9/transforms/40b76cc3d19e88ffea42e584ff7852f5/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:36:13-44
+125            android:enabled="true"
+125-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/wucy/.gradle/caches/8.9/transforms/40b76cc3d19e88ffea42e584ff7852f5/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:37:13-35
+126            android:exported="true"
+126-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/wucy/.gradle/caches/8.9/transforms/40b76cc3d19e88ffea42e584ff7852f5/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:38:13-36
+127            android:permission="android.permission.DUMP" >
+127-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/wucy/.gradle/caches/8.9/transforms/40b76cc3d19e88ffea42e584ff7852f5/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:39:13-57
+128            <intent-filter>
+128-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/wucy/.gradle/caches/8.9/transforms/40b76cc3d19e88ffea42e584ff7852f5/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:40:13-42:29
+129                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+129-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/wucy/.gradle/caches/8.9/transforms/40b76cc3d19e88ffea42e584ff7852f5/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:41:17-91
+129-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/wucy/.gradle/caches/8.9/transforms/40b76cc3d19e88ffea42e584ff7852f5/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:41:25-88
+130            </intent-filter>
+131            <intent-filter>
+131-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/wucy/.gradle/caches/8.9/transforms/40b76cc3d19e88ffea42e584ff7852f5/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:43:13-45:29
+132                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+132-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/wucy/.gradle/caches/8.9/transforms/40b76cc3d19e88ffea42e584ff7852f5/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:44:17-85
+132-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/wucy/.gradle/caches/8.9/transforms/40b76cc3d19e88ffea42e584ff7852f5/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:44:25-82
+133            </intent-filter>
+134            <intent-filter>
+134-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/wucy/.gradle/caches/8.9/transforms/40b76cc3d19e88ffea42e584ff7852f5/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:46:13-48:29
+135                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+135-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/wucy/.gradle/caches/8.9/transforms/40b76cc3d19e88ffea42e584ff7852f5/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:47:17-88
+135-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/wucy/.gradle/caches/8.9/transforms/40b76cc3d19e88ffea42e584ff7852f5/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:47:25-85
+136            </intent-filter>
+137            <intent-filter>
+137-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/wucy/.gradle/caches/8.9/transforms/40b76cc3d19e88ffea42e584ff7852f5/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:49:13-51:29
+138                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+138-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/wucy/.gradle/caches/8.9/transforms/40b76cc3d19e88ffea42e584ff7852f5/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:50:17-95
+138-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/wucy/.gradle/caches/8.9/transforms/40b76cc3d19e88ffea42e584ff7852f5/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:50:25-92
+139            </intent-filter>
+140        </receiver>
+141    </application>
+142
+143</manifest>

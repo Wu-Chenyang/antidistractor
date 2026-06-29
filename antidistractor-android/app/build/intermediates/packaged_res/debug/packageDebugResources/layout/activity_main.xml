@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@color/background">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Antidistractor"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_primary"
+        android:layout_marginBottom="24dp" />
+
+    <TextView
+        android:id="@+id/tv_status"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fontFamily="monospace"
+        android:textSize="13sp"
+        android:textColor="@color/text_secondary"
+        android:lineSpacingMultiplier="1.4" />
+
+    <Button
+        android:id="@+id/btn_usage_stats"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="开启使用情况权限（App 屏蔽必须）"
+        android:layout_marginBottom="8dp" />
+
+    <Button
+        android:id="@+id/btn_toggle_vpn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="启动 DNS 屏蔽"
+        android:layout_marginBottom="8dp" />
+
+    <Button
+        android:id="@+id/btn_toggle_app_block"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="启动 App 屏蔽" />
+
+</LinearLayout>

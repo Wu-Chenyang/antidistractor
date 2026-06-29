@@ -35,6 +35,7 @@ class ControlServerService : Service() {
         const val CHANNEL_ID = "antidistractor_server"
         const val ACTION_START = "com.antidistractor.server.START"
         const val ACTION_STOP = "com.antidistractor.server.STOP"
+        const val ACTION_BLOCKLIST_UPDATED = "com.antidistractor.BLOCKLIST_UPDATED"
     }
 
     private val gson = Gson()
@@ -252,9 +253,6 @@ class ControlServerService : Service() {
             .build()
     }
 
-    companion object {
-        const val ACTION_BLOCKLIST_UPDATED = "com.antidistractor.BLOCKLIST_UPDATED"
-    }
 }
 
 // ── Data classes ──────────────────────────────────────────────────────────────

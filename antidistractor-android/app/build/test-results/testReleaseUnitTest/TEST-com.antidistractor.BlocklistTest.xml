@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.antidistractor.BlocklistTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-06-29T09:40:26" hostname="U-7HKXMJQT-3064.local" time="0.012">
+  <properties/>
+  <testcase name="empty blocklist is empty" classname="com.antidistractor.BlocklistTest" time="0.001"/>
+  <testcase name="trailing dot is trimmed" classname="com.antidistractor.BlocklistTest" time="0.009"/>
+  <testcase name="domain suffix matching" classname="com.antidistractor.BlocklistTest" time="0.001"/>
+  <testcase name="blocklist with domains is not empty" classname="com.antidistractor.BlocklistTest" time="0.001"/>
+  <testcase name="domain matching is case insensitive" classname="com.antidistractor.BlocklistTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
