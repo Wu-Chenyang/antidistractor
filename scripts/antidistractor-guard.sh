@@ -4,14 +4,22 @@
 #
 # IMPORTANT: Does NOT use chattr +i on override.yaml (breaks Mihomo Party).
 # Only monitors content and repairs when tampered.
+#
+# 配置（通过环境变量覆盖，或修改下方默认值）：
+#   ANTIDISTRACTOR_USER       — 运行 mihomo-party 的用户名（默认：wucy）
+#   ANTIDISTRACTOR_USER_HOME  — 该用户的 home 目录（默认：/home/$ANTIDISTRACTOR_USER）
 
 set -euo pipefail
+
+# 用户配置（支持环境变量覆盖，适配不同机器）
+ANTIDISTRACTOR_USER="${ANTIDISTRACTOR_USER:-wucy}"
+ANTIDISTRACTOR_USER_HOME="${ANTIDISTRACTOR_USER_HOME:-/home/${ANTIDISTRACTOR_USER}}"
 
 HOSTS_FILE="/etc/hosts"
 HOSTS_MARKER="# === Antidistractor: bilibili block ==="
 
-OVERRIDE_REGISTRY="/home/wucy/.config/mihomo-party/override.yaml"
-OVERRIDE_FILE="/home/wucy/.config/mihomo-party/override/19e5f6e3177.yaml"
+OVERRIDE_REGISTRY="${ANTIDISTRACTOR_USER_HOME}/.config/mihomo-party/override.yaml"
+OVERRIDE_FILE="${ANTIDISTRACTOR_USER_HOME}/.config/mihomo-party/override/19e5f6e3177.yaml"
 
 POLL_INTERVAL=10
 
@@ -88,14 +96,14 @@ check_override_registry() {
                 { print }
             ' "$OVERRIDE_REGISTRY" > "${OVERRIDE_REGISTRY}.tmp" && \
                 mv "${OVERRIDE_REGISTRY}.tmp" "$OVERRIDE_REGISTRY" && \
-                chown wucy:wucy "$OVERRIDE_REGISTRY"
+                chown "${ANTIDISTRACTOR_USER}:${ANTIDISTRACTOR_USER}" "$OVERRIDE_REGISTRY"
             log "REPAIR: override registry fixed"
         fi
     else
         # Entry was deleted entirely. Re-add it.
         log "REPAIR: override registry missing 19e5f6e3177 entry, restoring..."
         sed -i '/^items:/a\  - id: 19e5f6e3177\n    name: 新建 YAML\n    type: local\n    ext: yaml\n    global: true\n    updated: 1779717517687' "$OVERRIDE_REGISTRY" 2>/dev/null || true
-        chown wucy:wucy "$OVERRIDE_REGISTRY"
+        chown "${ANTIDISTRACTOR_USER}:${ANTIDISTRACTOR_USER}" "$OVERRIDE_REGISTRY"
         log "REPAIR: override registry entry restored"
     fi
 }
@@ -108,7 +116,7 @@ check_override_file() {
     if [ ! -f "$OVERRIDE_FILE" ] && [ -f "$BACKUP" ]; then
         log "REPAIR: override file missing, restoring from backup..."
         cp "$BACKUP" "$OVERRIDE_FILE"
-        chown wucy:wucy "$OVERRIDE_FILE"
+        chown "${ANTIDISTRACTOR_USER}:${ANTIDISTRACTOR_USER}" "$OVERRIDE_FILE"
         chattr +i "$OVERRIDE_FILE" 2>/dev/null || true
         log "REPAIR: override file restored and locked"
     fi
