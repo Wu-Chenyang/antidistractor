@@ -9,6 +9,8 @@ ExecStart=/usr/local/bin/antidistractor-guard.sh
 Restart=always
 RestartSec=5
 User=root
+# 配置运行 mihomo-party 的用户（修改这里适配不同机器）
+Environment=ANTIDISTRACTOR_USER=wucy
 StandardOutput=journal
 StandardError=journal
 
