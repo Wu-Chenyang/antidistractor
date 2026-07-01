@@ -12,6 +12,7 @@
 ///   POST /block          { "domains": [...], "bundle_ids": [...], "category_ids": [...] }
 ///   POST /unblock        { "domains": [...], "bundle_ids": [...] }
 ///   POST /clear          {}
+///   POST /sync           { "domains": [...], "bundle_ids": [...], "category_ids": [...] }  — atomic replace
 ///   POST /authorize      {}   — triggers FamilyControls auth prompt
 ///   GET  /status         → { "ok": true, "authorized": bool, "blocking": bool, "blocklist": {...} }
 ///
@@ -197,6 +198,8 @@ public final class ControlServer: @unchecked Sendable {
             response = handleUnblock(body: bodyData)
         case ("POST", "/clear"):
             response = handleClear()
+        case ("POST", "/sync"):
+            response = handleSync(body: bodyData)
         case ("POST", "/authorize"):
             response = handleAuthorize()
         case ("GET", "/status"):
@@ -246,6 +249,36 @@ public final class ControlServer: @unchecked Sendable {
     private func handleClear() -> ControlResponse {
         DispatchQueue.main.sync {
             BlockingManager.shared.clearBlocklist()
+        }
+        return ControlResponse(ok: true)
+    }
+
+    /// Atomic replace — clear all restrictions then apply the new set in one operation.
+    /// Semantically equivalent to the Linux/macOS `sync` command.
+    ///
+    /// Domain wildcard note: WebDomain(domain: "bilibili.com") already covers all
+    /// subdomains (api.bilibili.com, www.bilibili.com, etc.) via ManagedSettings.
+    /// Callers should pass the root domain, not a suffix key like ".bilibili.com".
+    private func handleSync(body: Data) -> ControlResponse {
+        guard let req = try? JSONDecoder().decode(ControlRequest.self, from: body) else {
+            return ControlResponse(ok: false, error: "invalid JSON body")
+        }
+        DispatchQueue.main.sync {
+            // Clear first, then apply fresh blocklist atomically.
+            BlockingManager.shared.clearBlocklist()
+            var fresh = Blocklist()
+            if let domains = req.domains, !domains.isEmpty {
+                fresh.domains = Set(domains)
+            }
+            if let ids = req.bundleIDs, !ids.isEmpty {
+                fresh.bundleIDs = Set(ids)
+            }
+            if let cats = req.categoryIDs, !cats.isEmpty {
+                fresh.categoryIDs = Set(cats)
+            }
+            if !fresh.isEmpty {
+                BlockingManager.shared.applyBlocklist(fresh)
+            }
         }
         return ControlResponse(ok: true)
     }

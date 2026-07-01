@@ -132,6 +132,7 @@ class ControlServerService : Service() {
                     method == "POST" && path == "/block"   -> handleBlock(body)
                     method == "POST" && path == "/unblock" -> handleUnblock(body)
                     method == "POST" && path == "/clear"   -> handleClear()
+                    method == "POST" && path == "/sync"    -> handleSync(body)
                     method == "GET"  && path == "/status"  -> handleStatus()
                     else -> ControlResponse(ok = false, error = "unknown: $method $path")
                 }
@@ -186,6 +187,28 @@ class ControlServerService : Service() {
         val empty = Blocklist()
         BlocklistStore.save(this, empty)
         notifyServicesUpdated(empty)
+        return ControlResponse(ok = true)
+    }
+
+    /**
+     * 原子替换屏蔽集合（与 Linux/macOS sync 命令语义一致）。
+     * 先清空现有屏蔽，再批量写入新集合，一次广播通知所有 Service 更新。
+     * 支持通配符包名（如 "tv.danmaku.*"），由 AppBlockerService.isBlocked 负责匹配。
+     */
+    private fun handleSync(body: String): ControlResponse {
+        val req = try {
+            gson.fromJson(body, ControlRequest::class.java)
+        } catch (e: Exception) {
+            return ControlResponse(ok = false, error = "invalid JSON")
+        }
+        val fresh = Blocklist(
+            domains      = (req.domains      ?: emptyList()).toMutableSet(),
+            packageNames = (req.packageNames ?: emptyList()).toMutableSet(),
+            categories   = (req.categories   ?: emptyList()).toMutableSet(),
+        )
+        BlocklistStore.save(this, fresh)
+        notifyServicesUpdated(fresh)
+        Log.i(TAG, "Sync: ${fresh.domains.size} domains, ${fresh.packageNames.size} packages")
         return ControlResponse(ok = true)
     }
 

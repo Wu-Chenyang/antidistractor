@@ -24,6 +24,11 @@ pub struct NameBuf {
 #[map]
 static mut NAME_BUF: PerCpuArray<NameBuf> = PerCpuArray::with_max_entries(1, 0);
 
+/// Per-CPU buffer for suffix key construction during wildcard matching.
+/// Stores ".label.label.tld\0..." for BLOCKLIST lookup.
+#[map]
+static mut SUFFIX_BUF: PerCpuArray<NameBuf> = PerCpuArray::with_max_entries(1, 0);
+
 #[classifier]
 pub fn antidistractor(ctx: TcContext) -> i32 {
     match try_antidistractor(&ctx) {
@@ -201,8 +206,76 @@ fn try_antidistractor(ctx: &TcContext) -> Result<i32, ()> {
                     };
                     if ret != 0 { return Ok(TC_ACT_OK); }
 
+                    // Step 1: exact match (existing behaviour).
                     if unsafe { BLOCKLIST.get(&buf.name).is_some() } {
                         return Ok(TC_ACT_SHOT);
+                    }
+
+                    // Step 2: suffix / wildcard match.
+                    //
+                    // Walk the SNI label by label from left to right.  For each '.'
+                    // boundary, build a suffix key that starts with '.' and look it up
+                    // in BLOCKLIST.  A stored key ".bilibili.com" therefore matches
+                    // any SNI whose suffix equals ".bilibili.com" (i.e. every subdomain
+                    // of bilibili.com).
+                    //
+                    // Example: SNI = "api.bilibili.com"
+                    //   iteration 0 → suffix key ".bilibili.com"  → check BLOCKLIST
+                    //   iteration 1 → suffix key ".com"           → check BLOCKLIST
+                    //   iteration 2 → no more '.' → stop
+                    //
+                    // We use a second per-CPU map (SUFFIX_BUF) to hold the key so we
+                    // never touch the BPF stack beyond a few bytes.  The loop bound (10)
+                    // satisfies the verifier's termination requirement; real domain names
+                    // have at most ~5 labels in practice.
+                    let sbuf = unsafe {
+                        let ptr = SUFFIX_BUF.get_ptr_mut(0).ok_or(())?;
+                        &mut *ptr
+                    };
+
+                    // `dot_pos` tracks the byte index of the next '.' to process inside
+                    // buf.name (which holds the raw SNI bytes, zero-padded to 256).
+                    let mut dot_pos: usize = 0;
+
+                    for _ in 0..10u32 {
+                        // Find the next '.' starting from dot_pos.
+                        // Bounded inner scan: SNI is at most 127 bytes (checked above).
+                        let mut found = false;
+                        for j in dot_pos..128usize {
+                            // Safety: j < 128 < MAX_DNS_NAME_LEN (256).
+                            // The verifier accepts this because j has a static upper bound.
+                            if j >= MAX_DNS_NAME_LEN { break; }
+                            if buf.name[j] == b'.' {
+                                dot_pos = j;
+                                found = true;
+                                break;
+                            }
+                        }
+                        if !found { break; }
+
+                        // Build the suffix key in SUFFIX_BUF: copy from dot_pos to end,
+                        // zero-fill the rest.  The key starts with '.' which distinguishes
+                        // suffix keys from exact-domain keys in BLOCKLIST.
+                        sbuf.name = [0u8; MAX_DNS_NAME_LEN];
+                        // Copy bytes [dot_pos .. name_len] into sbuf.name[0..].
+                        // We need a bounded copy; name_len < 128.
+                        let suffix_len = if name_len > dot_pos { name_len - dot_pos } else { 0 };
+                        if suffix_len == 0 || suffix_len >= MAX_DNS_NAME_LEN { break; }
+                        for k in 0..128usize {
+                            if k >= suffix_len { break; }
+                            let src = dot_pos + k;
+                            if src >= MAX_DNS_NAME_LEN || k >= MAX_DNS_NAME_LEN { break; }
+                            sbuf.name[k] = buf.name[src];
+                        }
+
+                        if unsafe { BLOCKLIST.get(&sbuf.name).is_some() } {
+                            return Ok(TC_ACT_SHOT);
+                        }
+
+                        // Advance past the current '.' so the next iteration finds the
+                        // next label boundary.
+                        dot_pos += 1;
+                        if dot_pos >= name_len { break; }
                     }
                 }
             }

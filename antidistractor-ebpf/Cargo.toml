@@ -3,6 +3,11 @@ name = "antidistractor-ebpf"
 version = "0.1.0"
 edition = "2021"
 
+# Standalone workspace declaration — keeps this eBPF crate out of the parent
+# workspace (which uses the stable toolchain) so it can be built independently
+# with `cargo +nightly build --target bpfel-unknown-none -Z build-std=core`.
+[workspace]
+
 [dependencies]
 aya-ebpf = { git = "https://github.com/aya-rs/aya", branch = "main" }
 antidistractor-common = { path = "../antidistractor-common" }

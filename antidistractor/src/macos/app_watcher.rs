@@ -27,6 +27,9 @@ pub struct BlockedSet {
     pub paths: HashSet<String>,
     /// Process name basenames (e.g., "WeChat", "Bilibili")
     pub names: HashSet<String>,
+    /// Prefix wildcard patterns ending with '*' (e.g., "bilibili*").
+    /// Matches any process whose basename starts with the given prefix (case-sensitive).
+    pub patterns: HashSet<String>,
 }
 
 impl BlockedSet {
@@ -37,12 +40,20 @@ impl BlockedSet {
             return true;
         }
 
-        // Basename match against exe path
+        // Basename match against exe path (exact + prefix wildcard)
         if !exe_path.is_empty() {
             if let Some(name) = std::path::Path::new(exe_path).file_name() {
                 if let Some(s) = name.to_str() {
                     if self.names.contains(s) {
                         return true;
+                    }
+                    // Prefix wildcard: pattern ends with '*'
+                    for pattern in &self.patterns {
+                        if let Some(prefix) = pattern.strip_suffix('*') {
+                            if s.starts_with(prefix) {
+                                return true;
+                            }
+                        }
                     }
                 }
             }
@@ -51,6 +62,14 @@ impl BlockedSet {
         // Comm match (process name, may be truncated to 16 chars on macOS)
         if self.names.contains(comm) {
             return true;
+        }
+        // Comm prefix wildcard match
+        for pattern in &self.patterns {
+            if let Some(prefix) = pattern.strip_suffix('*') {
+                if comm.starts_with(prefix) {
+                    return true;
+                }
+            }
         }
 
         false

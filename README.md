@@ -2,20 +2,25 @@
 
 A cross-platform distraction blocker that prevents access to time-wasting websites and apps.
 
-| Platform | Network Blocking | App Blocking | Process Freezing | Screen Lock |
-|----------|-----------------|--------------|-----------------|-------------|
-| **Linux** | eBPF TC Classifier (kernel-level) | fanotify FAN_OPEN_EXEC_PERM | SIGSTOP via /proc | PAM + D-Bus |
-| **macOS** | PF Firewall + /etc/hosts | Process polling + SIGKILL | SIGSTOP via sysctl | pmset + ScreenSaverEngine |
+| Platform | Network Blocking | App Blocking | Wildcard | Process Freezing | Screen Lock |
+|----------|-----------------|--------------|----------|-----------------|-------------|
+| **Linux** | eBPF TC Classifier (kernel-level) | fanotify FAN_OPEN_EXEC_PERM | ✅ domain suffix + app prefix | SIGSTOP via /proc | PAM + D-Bus |
+| **macOS** | /etc/hosts | Process polling + SIGKILL | ⚠️ app prefix only | SIGSTOP via sysctl | pmset + ScreenSaverEngine |
+| **iOS** | ManagedSettings WebDomain | FamilyControls ApplicationToken | ✅ domain (auto) | — | — |
+| **Android** | DNS VPN (local TUN) | UsageStats overlay | ✅ domain suffix + app prefix | — | — |
+
+→ **[完整功能文档 docs/features.md](docs/features.md)**
 
 ## Features
 
 - **Network blocking**: Blocks outbound connections to configured domains at the kernel/firewall level
 - **App blocking**: Prevents blocked applications from running
+- **Wildcard matching**: `*.bilibili.com` blocks all subdomains; `bilibili*` blocks all processes with that prefix
 - **Process freezing**: Suspends running processes with SIGSTOP (reversible)
 - **Forced screen lock**: Enforces screen lock during configurable hours (default 01:00-07:00)
 - **TUI interface**: Interactive terminal UI for real-time blocklist management
 - **Daemon mode**: Headless background operation
-- **Runtime control**: Unix socket API for programmatic control
+- **Runtime control**: Unix socket API (Linux/macOS) and HTTP API (iOS/Android) for programmatic control
 
 ## Architecture
 

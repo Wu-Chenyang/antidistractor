@@ -180,15 +180,28 @@ try ScheduleManager.shared.startFocusSession(minutes: 60)
 
 ## HTTP API 参考
 
+所有请求需要 Header：`X-Antidistractor-Secret: <secret>`（若配置了密钥）
+
 | 方法 | 路径 | 请求体 | 说明 |
 |------|------|--------|------|
-| POST | /block | `{"domains":[...], "bundle_ids":[...], "category_ids":[...]}` | 添加屏蔽 |
+| POST | /block | `{"domains":[...], "bundle_ids":[...], "category_ids":[...]}` | 追加屏蔽 |
 | POST | /unblock | `{"domains":[...], "bundle_ids":[...]}` | 移除屏蔽 |
+| POST | /sync | `{"domains":[...], "bundle_ids":[...], "category_ids":[...]}` | **原子替换**：清空后批量写入（acticat passive-block-engine 专用） |
 | POST | /clear | `{}` | 清除所有屏蔽 |
 | POST | /authorize | `{}` | 触发授权弹窗（需用户在设备上操作）|
 | GET | /status | — | 查询当前状态 |
 
-所有请求需要 Header：`X-Antidistractor-Secret: <secret>`（若配置了密钥）
+### 域名通配符说明
+
+`WebDomain(domain: "bilibili.com")` 会自动屏蔽 `bilibili.com` 及其所有子域名（`api.bilibili.com`、`www.bilibili.com` 等）。调用方只需传根域名，无需枚举子域名。
+
+```bash
+# 屏蔽 bilibili.com 及所有子域名
+curl -X POST http://localhost:18964/sync \
+  -H "X-Antidistractor-Secret: YOUR_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"domains":["bilibili.com","youtube.com"],"bundle_ids":[]}'
+```
 
 ## 重要限制
 

@@ -175,7 +175,13 @@ class AppBlockerService : Service() {
     }
 
     private fun isBlocked(packageName: String): Boolean {
-        return blockedPackages.contains(packageName)
+        // 精确匹配
+        if (blockedPackages.contains(packageName)) return true
+        // 前缀通配符：pattern 以 '*' 结尾，匹配包名前缀
+        // 例如 "tv.danmaku.*" 匹配 "tv.danmaku.bili"、"tv.danmaku.bilibilihd" 等
+        return blockedPackages.any { pattern ->
+            pattern.endsWith('*') && packageName.startsWith(pattern.dropLast(1))
+        }
     }
 
     /** Launch ShieldActivity to cover the blocked app. */

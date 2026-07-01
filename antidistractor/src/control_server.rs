@@ -208,10 +208,17 @@ fn handle_cmd_linux(
                     Err(e) => errs.push(format!("{d}: {e}")),
                 }
             }
-            // 替换应用屏蔽集合（用 names 字段）
+            // 替换应用屏蔽集合：* 结尾 → patterns，否则 → names
             let mut app_set = blocked_apps.lock().unwrap();
             app_set.names.clear();
-            for n in new_app_names { app_set.names.insert(n); }
+            app_set.patterns.clear();
+            for n in new_app_names {
+                if n.ends_with('*') {
+                    app_set.patterns.insert(n);
+                } else {
+                    app_set.names.insert(n);
+                }
+            }
             drop(db); drop(app_set);
             if errs.is_empty() {
                 ControlResp { ok: true, error: None, status: None }
@@ -243,28 +250,53 @@ fn handle_cmd_linux(
         ControlCmd::BlockApp { paths, names } => {
             let mut set = blocked_apps.lock().unwrap();
             for p in paths { set.paths.insert(p); }
-            for n in names { set.names.insert(n); }
+            // * 结尾 → patterns（前缀通配符），否则 → names（精确匹配）
+            for n in names {
+                if n.ends_with('*') {
+                    set.patterns.insert(n);
+                } else {
+                    set.names.insert(n);
+                }
+            }
             ControlResp { ok: true, error: None, status: None }
         }
 
         ControlCmd::UnblockApp { paths, names } => {
             let mut set = blocked_apps.lock().unwrap();
             for p in &paths { set.paths.remove(p); }
-            for n in &names { set.names.remove(n); }
+            for n in &names {
+                if n.ends_with('*') {
+                    set.patterns.remove(n);
+                } else {
+                    set.names.remove(n);
+                }
+            }
             ControlResp { ok: true, error: None, status: None }
         }
 
         ControlCmd::BlockApps { apps } => {
-            // acticat 接口别名：apps 字段映射到 names
+            // acticat 接口别名：* 结尾 → patterns，否则 → names
             let mut set = blocked_apps.lock().unwrap();
-            for n in apps { set.names.insert(n); }
+            for n in apps {
+                if n.ends_with('*') {
+                    set.patterns.insert(n);
+                } else {
+                    set.names.insert(n);
+                }
+            }
             ControlResp { ok: true, error: None, status: None }
         }
 
         ControlCmd::UnblockApps { apps } => {
-            // acticat 接口别名：apps 字段映射到 names
+            // acticat 接口别名：* 结尾 → patterns，否则 → names
             let mut set = blocked_apps.lock().unwrap();
-            for n in &apps { set.names.remove(n); }
+            for n in &apps {
+                if n.ends_with('*') {
+                    set.patterns.remove(n);
+                } else {
+                    set.names.remove(n);
+                }
+            }
             ControlResp { ok: true, error: None, status: None }
         }
 
@@ -309,7 +341,10 @@ fn handle_cmd_linux(
             let fm = *focus_mode_active.lock().unwrap();
             let apps = blocked_apps.lock().unwrap();
             let mut paths: Vec<String> = apps.paths.iter().cloned().collect();
-            let mut names: Vec<String> = apps.names.iter().cloned().collect();
+            // names + patterns 合并后返回，方便调用方了解完整屏蔽集合
+            let mut names: Vec<String> = apps.names.iter()
+                .chain(apps.patterns.iter())
+                .cloned().collect();
             paths.sort(); names.sort();
             let frozen_apps = freezer.lock().unwrap().frozen_names();
             ControlResp {
@@ -432,7 +467,7 @@ fn handle_cmd_macos(
             // 清空现有域名屏蔽
             for d in db.iter() { let _ = blocker.remove_domain(d); }
             db.clear();
-            // 添加新域名
+            // 添加新域名（后缀键 . 开头的会被 PfBlocker 静默忽略）
             let mut errs = Vec::new();
             for d in &blocked_domains {
                 match blocker.add_domain(d) {
@@ -440,10 +475,17 @@ fn handle_cmd_macos(
                     Err(e) => errs.push(format!("{d}: {e}")),
                 }
             }
-            // 替换应用屏蔽集合（用 names 字段）
+            // 替换应用屏蔽集合：* 结尾 → patterns，否则 → names
             let mut app_set = blocked_apps.lock().unwrap();
             app_set.names.clear();
-            for n in new_app_names { app_set.names.insert(n); }
+            app_set.patterns.clear();
+            for n in new_app_names {
+                if n.ends_with('*') {
+                    app_set.patterns.insert(n);
+                } else {
+                    app_set.names.insert(n);
+                }
+            }
             if errs.is_empty() {
                 ControlResp { ok: true, error: None, status: None }
             } else {
@@ -474,26 +516,53 @@ fn handle_cmd_macos(
         ControlCmd::BlockApp { paths, names } => {
             let mut set = blocked_apps.lock().unwrap();
             for p in paths { set.paths.insert(p); }
-            for n in names { set.names.insert(n); }
+            // * 结尾 → patterns（前缀通配符），否则 → names（精确匹配）
+            for n in names {
+                if n.ends_with('*') {
+                    set.patterns.insert(n);
+                } else {
+                    set.names.insert(n);
+                }
+            }
             ControlResp { ok: true, error: None, status: None }
         }
 
         ControlCmd::UnblockApp { paths, names } => {
             let mut set = blocked_apps.lock().unwrap();
             for p in &paths { set.paths.remove(p); }
-            for n in &names { set.names.remove(n); }
+            for n in &names {
+                if n.ends_with('*') {
+                    set.patterns.remove(n);
+                } else {
+                    set.names.remove(n);
+                }
+            }
             ControlResp { ok: true, error: None, status: None }
         }
 
         ControlCmd::BlockApps { apps } => {
+            // acticat 接口别名：* 结尾 → patterns，否则 → names
             let mut set = blocked_apps.lock().unwrap();
-            for n in apps { set.names.insert(n); }
+            for n in apps {
+                if n.ends_with('*') {
+                    set.patterns.insert(n);
+                } else {
+                    set.names.insert(n);
+                }
+            }
             ControlResp { ok: true, error: None, status: None }
         }
 
         ControlCmd::UnblockApps { apps } => {
+            // acticat 接口别名：* 结尾 → patterns，否则 → names
             let mut set = blocked_apps.lock().unwrap();
-            for n in &apps { set.names.remove(n); }
+            for n in &apps {
+                if n.ends_with('*') {
+                    set.patterns.remove(n);
+                } else {
+                    set.names.remove(n);
+                }
+            }
             ControlResp { ok: true, error: None, status: None }
         }
 
@@ -546,7 +615,10 @@ fn handle_cmd_macos(
 
             let apps = blocked_apps.lock().unwrap();
             let mut paths: Vec<String> = apps.paths.iter().cloned().collect();
-            let mut names: Vec<String> = apps.names.iter().cloned().collect();
+            // names + patterns 合并后返回，方便调用方了解完整屏蔽集合
+            let mut names: Vec<String> = apps.names.iter()
+                .chain(apps.patterns.iter())
+                .cloned().collect();
             paths.sort(); names.sort();
             let frozen_apps = freezer.lock().unwrap().frozen_names();
 

@@ -27,6 +27,9 @@ pub struct BlockedSet {
     pub paths: HashSet<String>,
     /// 进程名（basename），如 "WeChat"、"steam"
     pub names: HashSet<String>,
+    /// 前缀通配符模式（以 '*' 结尾），如 "bilibili*"。
+    /// 匹配所有进程名以该前缀开头的进程（大小写敏感）。
+    pub patterns: HashSet<String>,
 }
 
 impl BlockedSet {
@@ -34,10 +37,20 @@ impl BlockedSet {
         if self.paths.contains(path) {
             return true;
         }
-        // basename 匹配
+        // basename 精确匹配 + 前缀通配符匹配
         if let Some(name) = std::path::Path::new(path).file_name() {
             if let Some(s) = name.to_str() {
-                return self.names.contains(s);
+                if self.names.contains(s) {
+                    return true;
+                }
+                // 前缀通配符：pattern 以 '*' 结尾，匹配进程名前缀
+                for pattern in &self.patterns {
+                    if let Some(prefix) = pattern.strip_suffix('*') {
+                        if s.starts_with(prefix) {
+                            return true;
+                        }
+                    }
+                }
             }
         }
         false

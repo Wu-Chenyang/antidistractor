@@ -29,8 +29,7 @@ endif
 
 build-ebpf:
 	@echo "Building eBPF program (Target interface: $(IFACE))..."
-	RUSTFLAGS="-g -C link-arg=--btf" cargo +nightly build \
-		--package antidistractor-ebpf \
+	cd antidistractor-ebpf && RUSTFLAGS="-g -C link-arg=--btf" cargo +nightly build \
 		--target bpfel-unknown-none \
 		-Z build-std=core \
 		--release

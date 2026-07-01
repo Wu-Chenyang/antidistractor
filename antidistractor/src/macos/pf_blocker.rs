@@ -63,7 +63,15 @@ impl PfBlocker {
     }
 
     /// Add a domain. Updates /etc/hosts immediately.
+    ///
+    /// Suffix keys (starting with '.', e.g. ".bilibili.com") are silently ignored:
+    /// /etc/hosts does not support wildcard entries, so they would have no effect.
+    /// On Linux the eBPF layer handles suffix matching natively.
     pub fn add_domain(&mut self, domain: &str) -> anyhow::Result<()> {
+        if domain.starts_with('.') {
+            log::debug!("[blocker] Skipping suffix key '{}' (wildcard not supported in /etc/hosts)", domain);
+            return Ok(());
+        }
         if self.blocked_domains.contains(domain) {
             return Ok(());
         }
